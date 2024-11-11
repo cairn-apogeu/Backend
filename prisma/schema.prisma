@@ -1,0 +1,191 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum USER_STATUS {
+    ACCEPTED
+    DENIED
+    PENDING
+}
+
+enum GENDER {
+    MALE
+    FEMALE
+}
+
+enum SCHEDULE_STATUS {
+    CONFIRMED
+    PENDING
+    CANCELLED
+}
+
+model user {
+    id               String          @id
+    name             String
+    instagram        String          @unique
+    address          String
+    neighborhood     String
+    number           Int
+    complement       String?
+    date_of_birth    DateTime
+    city             String
+    gender           GENDER
+    status           USER_STATUS     @default(PENDING)
+    created_at       DateTime        @default(now()) @db.Timestamptz
+    updated_at       DateTime        @updatedAt @db.Timestamptz
+    form             form?
+    ratings          event_rating[]
+    received_ratings user_rating[]
+    schedules        user_schedule[]
+    user_group       user_group[]
+    primary_pairings pairing[]       @relation("primary_user")
+    paired_pairings  pairing[]       @relation("paired_user")
+}
+
+model schedule {
+    id             String          @id @default(uuid())
+    datetime       DateTime        @unique @db.Timestamptz
+    created_at     DateTime        @default(now()) @db.Timestamptz
+    user_schedules user_schedule[]
+    events         event[]
+    pairings       pairing[]
+}
+
+model user_schedule {
+    user_id     String
+    schedule_id String
+    status      SCHEDULE_STATUS @default(PENDING)
+    created_at  DateTime        @default(now()) @db.Timestamptz
+    updated_at  DateTime        @updatedAt @db.Timestamptz
+
+    user     user     @relation(fields: [user_id], references: [id])
+    schedule schedule @relation(fields: [schedule_id], references: [id])
+
+    @@id([user_id, schedule_id])
+}
+
+model event {
+    id            String   @id @default(uuid())
+    restaurant_id String
+    schedule_id   String
+    created_at    DateTime @default(now()) @db.Timestamptz
+    updated_at    DateTime @updatedAt @db.Timestamptz
+
+    schedules  schedule   @relation(fields: [schedule_id], references: [id])
+    restaurant restaurant @relation(fields: [restaurant_id], references: [id])
+
+    groups       group[]
+    event_rating event_rating[]
+}
+
+model group {
+    id         String   @id @default(uuid())
+    event_id   String
+    created_at DateTime @default(now()) @db.Timestamptz
+    updated_at DateTime @updatedAt @db.Timestamptz
+
+    event      event        @relation(fields: [event_id], references: [id])
+    user_group user_group[]
+}
+
+model user_group {
+    user_id  String
+    group_id String
+
+    user  user  @relation(fields: [user_id], references: [id])
+    group group @relation(fields: [group_id], references: [id])
+
+    @@id([user_id, group_id])
+}
+
+model pairing {
+    primary_user_id String
+    paired_user_id  String
+    schedule_id     String
+    created_at      DateTime @default(now()) @db.Timestamptz
+    updated_at      DateTime @updatedAt @db.Timestamptz
+
+    primary_user user     @relation("primary_user", fields: [primary_user_id], references: [id])
+    paired_user  user     @relation("paired_user", fields: [paired_user_id], references: [id])
+    schedule     schedule @relation(fields: [schedule_id], references: [id])
+
+    @@id([primary_user_id, paired_user_id, schedule_id])
+}
+
+model form {
+    id                     String   @id @default(uuid())
+    user_id                String   @unique
+    objective              String[]
+    occupation             String[]
+    company_size           String?
+    sector                 String[]
+    connected              Int
+    introversion           Int
+    dinner_zone_preference String
+    subjects               String[]
+    rational_or_emotional  String
+    hobbies                String[]
+    religion               String
+    life_case              String[]
+    nocturnal_habits       Int
+    invest                 String
+    culinaries             String[]
+    likes_to_test          Int
+    drinks                 String[]
+    food_restriction       String[]
+    relationship_status    String
+    special_need           String
+    where_meet             String
+    created_at             DateTime @default(now()) @db.Timestamptz
+    updated_at             DateTime @updatedAt @db.Timestamptz
+
+    user user @relation(fields: [user_id], references: [id])
+}
+
+model restaurant {
+    id         String   @id @default(uuid())
+    name       String
+    address    String
+    latitude   Float
+    longitude  Float
+    created_at DateTime @default(now()) @db.Timestamptz
+    updated_at DateTime @updatedAt @db.Timestamptz
+
+    events event[]
+}
+
+model event_rating {
+    id                           Int      @id @default(autoincrement())
+    user_id                      String
+    event_id                     String
+    observation                  String?
+    event_starts                 Int
+    event_liked                  String[]
+    event_should_get_better      String[]
+    restaurant_stars             Int
+    restaurant_liked             String[]
+    restaurant_should_get_better String[]
+    created_at                   DateTime @default(now()) @db.Timestamptz
+
+    user         user          @relation(fields: [user_id], references: [id])
+    event        event         @relation(fields: [event_id], references: [id])
+    user_ratings user_rating[]
+}
+
+model user_rating {
+    id                Int      @id @default(autoincrement())
+    user_id           String
+    rating_id         Int
+    stars             Int
+    liked             String[]
+    should_get_better String[]
+    created_at        DateTime @default(now()) @db.Timestamptz
+
+    rating     event_rating @relation(fields: [rating_id], references: [id])
+    rated_user user         @relation(fields: [user_id], references: [id])
+}
