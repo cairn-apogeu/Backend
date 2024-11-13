@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Users {
-  user_clerk_id   Int       @id
+  user_clerk_id   String       @id
   tipo_perfil     String    @db.VarChar(10)
   discord         String?   @db.VarChar(20)
   linkedin        String?   @db.VarChar(30)
@@ -16,7 +16,7 @@ model Users {
   objetivo_curto  String?
   objetivo_medio  String?
   objetivo_longo  String?
-  sexo            String?   @db.VarChar(10)
+  genero            String?   @db.VarChar(10)
   nascimento      DateTime?
 
   projetosCliente Projetos[] @relation("ProjetosCliente")
@@ -28,8 +28,8 @@ model Users {
 
 model Projetos {
   id          Int            @id @default(autoincrement())
-  id_cliente  Int
-  id_gestor   Int
+  id_cliente  String
+  id_gestor   String
   nome        String         @db.VarChar(100)
   valor       Int
   status      String         @db.VarChar(50)
@@ -45,7 +45,7 @@ model Projetos {
 
 model AlunosProjetos {
   projeto_id Int
-  aluno_id   Int
+  aluno_id   String
 
   projeto    Projetos @relation(fields: [projeto_id], references: [id])
   aluno      Users    @relation(fields: [aluno_id], references: [user_clerk_id])
@@ -73,7 +73,7 @@ model Cards {
   status           String     @db.VarChar(20)
   tempo_estimado   Int?
   tempo            Int?
-  assigned         Int?
+  assigned         String?
   sprint           Int?
   dod              String[]
   dor              String[]
