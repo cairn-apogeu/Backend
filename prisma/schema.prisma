@@ -7,185 +7,87 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-enum USER_STATUS {
-    ACCEPTED
-    DENIED
-    PENDING
+model Users {
+  user_clerk_id   String       @id
+  tipo_perfil     String    @db.VarChar(10)
+  discord         String?   @db.VarChar(20)
+  linkedin        String?   @db.VarChar(30)
+  github          String?   @db.VarChar(30)
+  objetivo_curto  String?
+  objetivo_medio  String?
+  objetivo_longo  String?
+  genero            String?   @db.VarChar(10)
+  nascimento      DateTime?
+
+  projetosCliente Projetos[] @relation("ProjetosCliente")
+  projetosGestor  Projetos[] @relation("ProjetosGestor")
+  cards           Cards[]    @relation("CardAssigned")
+
+  AlunosProjetos  AlunosProjetos[]
 }
 
-enum GENDER {
-    MALE
-    FEMALE
+model Projetos {
+  id          Int            @id @default(autoincrement())
+  id_cliente  String
+  id_gestor   String
+  nome        String         @db.VarChar(100)
+  valor       Int
+  status      String         @db.VarChar(50)
+
+  cliente     Users          @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
+  gestor      Users          @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
+  sprints     Sprints[]
+  AlunosProjetos AlunosProjetos[]
+
+  @@index([id_cliente], map: "fk_projetos_id_cliente")
+  @@index([id_gestor], map: "fk_projetos_id_gestor")
 }
 
-enum SCHEDULE_STATUS {
-    CONFIRMED
-    PENDING
-    CANCELLED
+model AlunosProjetos {
+  projeto_id Int
+  aluno_id   String
+
+  projeto    Projetos @relation(fields: [projeto_id], references: [id])
+  aluno      Users    @relation(fields: [aluno_id], references: [user_clerk_id])
+
+  @@id([projeto_id, aluno_id])
+  @@index([projeto_id], map: "fk_alunos_projeto_id")
+  @@index([aluno_id], map: "fk_alunos_aluno_id")
 }
 
-model user {
-    id               String          @id
-    name             String
-    instagram        String          @unique
-    address          String
-    neighborhood     String
-    number           Int
-    complement       String?
-    date_of_birth    DateTime
-    city             String
-    gender           GENDER
-    status           USER_STATUS     @default(PENDING)
-    created_at       DateTime        @default(now()) @db.Timestamptz
-    updated_at       DateTime        @updatedAt @db.Timestamptz
-    form             form?
-    ratings          event_rating[]
-    received_ratings user_rating[]
-    schedules        user_schedule[]
-    user_group       user_group[]
-    primary_pairings pairing[]       @relation("primary_user")
-    paired_pairings  pairing[]       @relation("paired_user")
+model Sprints {
+  id         Int       @id @default(autoincrement())
+  id_projeto Int
+  numero     Int
+
+  projeto    Projetos @relation(fields: [id_projeto], references: [id])
+  cards      Cards[]
+
+  @@index([id_projeto], map: "fk_sprints_id_projeto")
 }
 
-model schedule {
-    id             String          @id @default(uuid())
-    datetime       DateTime        @unique @db.Timestamptz
-    created_at     DateTime        @default(now()) @db.Timestamptz
-    user_schedules user_schedule[]
-    events         event[]
-    pairings       pairing[]
-}
+model Cards {
+  id               Int        @id @default(autoincrement())
+  titulo           String     @db.VarChar(100)
+  descricao        String?
+  status           String     @db.VarChar(20)
+  tempo_estimado   Int?
+  tempo            Int?
+  assigned         String?
+  sprint           Int?
+  dod              String[]
+  dor              String[]
+  xp_frontend      Int?
+  xp_backend       Int?
+  xp_negocios      Int?
+  xp_arquitetura   Int?
+  xp_design        Int?
+  xp_datalytics    Int?
+  indicacao_conteudo String?
 
-model user_schedule {
-    user_id     String
-    schedule_id String
-    status      SCHEDULE_STATUS @default(PENDING)
-    created_at  DateTime        @default(now()) @db.Timestamptz
-    updated_at  DateTime        @updatedAt @db.Timestamptz
+  assignedTo       Users?     @relation("CardAssigned", fields: [assigned], references: [user_clerk_id])
+  sprintRelation   Sprints?   @relation(fields: [sprint], references: [id])
 
-    user     user     @relation(fields: [user_id], references: [id])
-    schedule schedule @relation(fields: [schedule_id], references: [id])
-
-    @@id([user_id, schedule_id])
-}
-
-model event {
-    id            String   @id @default(uuid())
-    restaurant_id String
-    schedule_id   String
-    created_at    DateTime @default(now()) @db.Timestamptz
-    updated_at    DateTime @updatedAt @db.Timestamptz
-
-    schedules  schedule   @relation(fields: [schedule_id], references: [id])
-    restaurant restaurant @relation(fields: [restaurant_id], references: [id])
-
-    groups       group[]
-    event_rating event_rating[]
-}
-
-model group {
-    id         String   @id @default(uuid())
-    event_id   String
-    created_at DateTime @default(now()) @db.Timestamptz
-    updated_at DateTime @updatedAt @db.Timestamptz
-
-    event      event        @relation(fields: [event_id], references: [id])
-    user_group user_group[]
-}
-
-model user_group {
-    user_id  String
-    group_id String
-
-    user  user  @relation(fields: [user_id], references: [id])
-    group group @relation(fields: [group_id], references: [id])
-
-    @@id([user_id, group_id])
-}
-
-model pairing {
-    primary_user_id String
-    paired_user_id  String
-    schedule_id     String
-    created_at      DateTime @default(now()) @db.Timestamptz
-    updated_at      DateTime @updatedAt @db.Timestamptz
-
-    primary_user user     @relation("primary_user", fields: [primary_user_id], references: [id])
-    paired_user  user     @relation("paired_user", fields: [paired_user_id], references: [id])
-    schedule     schedule @relation(fields: [schedule_id], references: [id])
-
-    @@id([primary_user_id, paired_user_id, schedule_id])
-}
-
-model form {
-    id                     String   @id @default(uuid())
-    user_id                String   @unique
-    objective              String[]
-    occupation             String[]
-    company_size           String?
-    sector                 String[]
-    connected              Int
-    introversion           Int
-    dinner_zone_preference String
-    subjects               String[]
-    rational_or_emotional  String
-    hobbies                String[]
-    religion               String
-    life_case              String[]
-    nocturnal_habits       Int
-    invest                 String
-    culinaries             String[]
-    likes_to_test          Int
-    drinks                 String[]
-    food_restriction       String[]
-    relationship_status    String
-    special_need           String
-    where_meet             String
-    created_at             DateTime @default(now()) @db.Timestamptz
-    updated_at             DateTime @updatedAt @db.Timestamptz
-
-    user user @relation(fields: [user_id], references: [id])
-}
-
-model restaurant {
-    id         String   @id @default(uuid())
-    name       String
-    address    String
-    latitude   Float
-    longitude  Float
-    created_at DateTime @default(now()) @db.Timestamptz
-    updated_at DateTime @updatedAt @db.Timestamptz
-
-    events event[]
-}
-
-model event_rating {
-    id                           Int      @id @default(autoincrement())
-    user_id                      String
-    event_id                     String
-    observation                  String?
-    event_starts                 Int
-    event_liked                  String[]
-    event_should_get_better      String[]
-    restaurant_stars             Int
-    restaurant_liked             String[]
-    restaurant_should_get_better String[]
-    created_at                   DateTime @default(now()) @db.Timestamptz
-
-    user         user          @relation(fields: [user_id], references: [id])
-    event        event         @relation(fields: [event_id], references: [id])
-    user_ratings user_rating[]
-}
-
-model user_rating {
-    id                Int      @id @default(autoincrement())
-    user_id           String
-    rating_id         Int
-    stars             Int
-    liked             String[]
-    should_get_better String[]
-    created_at        DateTime @default(now()) @db.Timestamptz
-
-    rating     event_rating @relation(fields: [rating_id], references: [id])
-    rated_user user         @relation(fields: [user_id], references: [id])
+  @@index([assigned], map: "fk_cards_assigned")
+  @@index([sprint], map: "fk_cards_sprint")
 }
