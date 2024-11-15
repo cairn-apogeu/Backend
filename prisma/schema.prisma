@@ -70,11 +70,11 @@ model Cards {
   id               Int        @id @default(autoincrement())
   titulo           String     @db.VarChar(100)
   descricao        String?
-  status           String     @db.VarChar(20)
+  status           String     @db.VarChar(20) 
   tempo_estimado   Int?
   tempo            Int?
   assigned         Int?
-  sprint           Int?
+  sprint           Int? 
   dod              String[]
   dor              String[]
   xp_frontend      Int?
