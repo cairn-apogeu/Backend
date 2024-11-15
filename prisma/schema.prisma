@@ -74,7 +74,7 @@ model Cards {
   tempo_estimado   Int?
   tempo            Int?
   assigned         String?
-  sprint           Int? 
+  sprint           Int?
   dod              String[]
   dor              String[]
   xp_frontend      Int?
