@@ -73,7 +73,7 @@ model Cards {
   status           String     @db.VarChar(20) 
   tempo_estimado   Int?
   tempo            Int?
-  assigned         Int?
+  assigned         String?
   sprint           Int? 
   dod              String[]
   dor              String[]
