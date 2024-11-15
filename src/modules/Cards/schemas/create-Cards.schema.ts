@@ -9,12 +9,8 @@ export const CardsSchema = z.object({
   sprint: z.number().optional(),
   dod: z.array(z.string()).optional(),
   dor: z.array(z.string()).optional(),
-  xp_frontend: z.number().optional(),
-  xp_backend: z.number().optional(),
-  xp_negocios: z.number().optional(),
-  xp_arquitetura: z.number().optional(),
-  xp_design: z.number().optional(),
-  xp_datalytics: z.number().optional(),
+  xp: z.number().optional(),
+  tipo: z.string().optional(),
   indicacao_conteudo: z.string().optional(),
 });
 

@@ -18,6 +18,12 @@ model Users {
   objetivo_longo  String?
   genero            String?   @db.VarChar(10)
   nascimento      DateTime?
+  xp_frontend      Int?
+  xp_backend       Int?
+  xp_negocios      Int?
+  xp_arquitetura   Int?
+  xp_design        Int?
+  xp_datalytics    Int?
 
   projetosCliente Projetos[] @relation("ProjetosCliente")
   projetosGestor  Projetos[] @relation("ProjetosGestor")
@@ -77,12 +83,8 @@ model Cards {
   sprint           Int?
   dod              String[]
   dor              String[]
-  xp_frontend      Int?
-  xp_backend       Int?
-  xp_negocios      Int?
-  xp_arquitetura   Int?
-  xp_design        Int?
-  xp_datalytics    Int?
+  xp               Int?
+  tipo             String     @db.VarChar(20)
   indicacao_conteudo String?
 
   assignedTo       Users?     @relation("CardAssigned", fields: [assigned], references: [user_clerk_id])
