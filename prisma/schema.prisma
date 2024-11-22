@@ -16,7 +16,7 @@ model Users {
   objetivo_curto  String?
   objetivo_medio  String?
   objetivo_longo  String?
-  genero            String?   @db.VarChar(10)
+  genero          String?   @db.VarChar(10)
   nascimento      DateTime?
 
   projetosCliente Projetos[] @relation("ProjetosCliente")
