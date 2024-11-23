@@ -14,7 +14,7 @@ class ProjetoController {
   }
 
   async findById(
-    request: FastifyRequest<{ Params: { id: number } }>,
+    request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply
   ) {
     const { id } = ProjetosIdSchema.parse(request.params);

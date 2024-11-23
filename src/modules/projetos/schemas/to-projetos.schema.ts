@@ -4,8 +4,8 @@ export const ToProjetosSchema = z.object({
   nome: z.string(),
   valor: z.number(),
   status: z.string(),
-  id_cliente: z.number(),
-  id_gestor: z.number(),
+  id_cliente: z.string(),
+  id_gestor: z.string(),
 });
 
 export type ToProjetosDto = z.infer<typeof ToProjetosSchema>;
