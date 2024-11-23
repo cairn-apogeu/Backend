@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import projetoService from "./projetos.service";
-import { ProjetosIdSchema } from "./schemas/projetos-id.schema";
+import { ProjetosParamsIdSchema } from "./schemas/projetos-id.schema";
 import { ToProjetosDto } from "./schemas/to-projetos.schema";
 
 class ProjetoController {
@@ -13,15 +13,17 @@ class ProjetoController {
     }
   }
 
-  async findById(
+  async findProjectById(
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply
   ) {
-    const { id } = ProjetosIdSchema.parse(request.params);
+    const { id } = ProjetosParamsIdSchema.parse(request.params);
+    console.log(id);
     try {
-      const projeto = await projetoService.findById(id);
+      const projeto = await projetoService.findById(Number(id));
       reply.send(projeto);
     } catch (error) {
+      console.log("Erro no controller", error);
       reply.status(404).send({ Message: error });
     }
   }
@@ -47,9 +49,12 @@ class ProjetoController {
     reply: FastifyReply
   ) {
     const toProjetosDto = request.body;
-    const { id } = ProjetosIdSchema.parse(request.params);
+    const { id } = ProjetosParamsIdSchema.parse(request.params);
     try {
-      const newProjeto = await projetoService.updateProjeto(id, toProjetosDto);
+      const newProjeto = await projetoService.updateProjeto(
+        Number(id),
+        toProjetosDto
+      );
       reply.send(newProjeto);
     } catch (error) {
       reply.status(500).send({ Message: error });
@@ -60,9 +65,9 @@ class ProjetoController {
     request: FastifyRequest<{ Params: { id: number } }>,
     reply: FastifyReply
   ) {
-    const { id } = ProjetosIdSchema.parse(request.params);
+    const { id } = ProjetosParamsIdSchema.parse(request.params);
     try {
-      const projeto = await projetoService.deleteProjeto(id);
+      const projeto = await projetoService.deleteProjeto(Number(id));
       reply.send(projeto);
     } catch (error) {
       reply.status(500).send({ Message: error });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const ProjetosIdSchema = z.object({
-  id: z.number(),
+export const ProjetosParamsIdSchema = z.object({
+  id: z.string(),
 });
 
-export type ProjetosIdDto = z.infer<typeof ProjetosIdSchema>;
+export type ProjetosParamsIdDto = z.infer<typeof ProjetosParamsIdSchema>;
