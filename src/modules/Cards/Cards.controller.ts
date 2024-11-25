@@ -55,7 +55,7 @@ class CardsController {
     }
   }
 
-  async findByAssignedUser(request: FastifyRequest<{ Params: { userId: number } }>, reply: FastifyReply) {
+  async findByAssignedUser(request: FastifyRequest<{ Params: { userId: string } }>, reply: FastifyReply) {
     const { userId } = request.params;
     try {
       const cards = await cardsService.findByAssignedUser(userId);
