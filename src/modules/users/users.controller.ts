@@ -23,7 +23,7 @@ class UserController {
       const user = await userService.findById(id);
       reply.send(user);
     } catch (error) {
-      reply.status(404).send({ Message: error });
+      reply.status(404).send({ message: error });
     }
   }
 
