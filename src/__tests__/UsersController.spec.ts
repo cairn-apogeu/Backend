@@ -2,6 +2,14 @@ import {
   ToUserDto,
   ToUserSchema,
 } from "../modules/users/schemas/to-user.schema";
+import {
+  UpdateUserDto,
+  UpdateUserSchema,
+} from "../modules/users/schemas/update-user.schema";
+import {
+  UserIdDto,
+  UserIdSchema,
+} from "../modules/users/schemas/user-id.schema";
 import userController from "../modules/users/users.controller";
 import userService from "../modules/users/users.service";
 import { FastifyRequest, FastifyReply } from "fastify";
@@ -167,7 +175,7 @@ describe("Users Controller", () => {
   });
 
   it("NewUser Function returns code 500", async () => {
-    let mockRequest: Partial<FastifyRequest>;
+    let mockRequest;
     let mockReply: Partial<FastifyReply>;
 
     mockReply = {
@@ -187,6 +195,140 @@ describe("Users Controller", () => {
     );
 
     expect(userService.newUser).toHaveBeenCalled();
+    expect(mockReply.status).toHaveBeenCalledWith(500);
+    expect(mockReply.send).toHaveBeenCalledWith({ message: mockError });
+  });
+
+  it("UpdateUser Function", async () => {
+    let mockRequest: Partial<FastifyRequest>;
+    let mockReply: Partial<FastifyReply>;
+
+    mockReply = {
+      send: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+    };
+
+    mockRequest = {
+      params: {
+        id: "1",
+      },
+      body: {
+        user_clerk_id: "1",
+        tipo_perfil: "ALUNO",
+        github: "robertin039",
+      },
+    };
+
+    const mockUser = {
+      user_clerk_id: "1",
+      tipo_perfil: "ALUNO",
+      discord: null,
+      linkedin: null,
+      github: "robertin039",
+      objetivo_curto: null,
+      objetivo_medio: null,
+      objetivo_longo: null,
+      genero: null,
+      nascimento: null,
+    };
+
+    jest
+      .spyOn(UpdateUserSchema, "parse")
+      .mockReturnValue(mockRequest.body as UpdateUserDto);
+
+    jest
+      .spyOn(UserIdSchema, "parse")
+      .mockReturnValue(mockRequest.params as UserIdDto);
+
+    (userService.updateUser as jest.Mock).mockResolvedValue(mockUser);
+
+    await userController.updateUser(
+      mockRequest as FastifyRequest<{ Params: UserIdDto; Body: UpdateUserDto }>,
+      mockReply as FastifyReply
+    );
+
+    expect(UpdateUserSchema.parse).toHaveBeenCalledWith(mockRequest.body);
+    expect(UserIdSchema.parse).toHaveBeenCalledWith(mockRequest.params);
+    expect(mockReply.send).toHaveBeenCalledWith(mockUser);
+  });
+
+  it("UpdateUser Function returns code 500", async () => {
+    let mockRequest: Partial<FastifyRequest>;
+    let mockReply: Partial<FastifyReply>;
+
+    mockReply = {
+      send: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+    };
+
+    mockRequest = {};
+
+    const mockError = new Error("Erro!");
+
+    (userService.updateUser as jest.Mock).mockRejectedValue(mockError);
+
+    await userController.updateUser(
+      mockRequest as FastifyRequest<{ Params: UserIdDto; Body: UpdateUserDto }>,
+      mockReply as FastifyReply
+    );
+
+    expect(userService.updateUser).toHaveBeenCalled();
+    expect(mockReply.status).toHaveBeenCalledWith(500);
+    expect(mockReply.send).toHaveBeenCalledWith({ message: mockError });
+  });
+
+  it("DeleteUser", async () => {
+    let mockRequest: Partial<FastifyRequest>;
+    let mockReply: Partial<FastifyReply>;
+
+    mockReply = {
+      send: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+    };
+
+    mockRequest = {
+      params: { id: "1" },
+    };
+
+    const mockUser = {
+      user_clerk_id: "1",
+      tipo_perfil: "ALUNO",
+      github: "robertin039",
+    };
+
+    (userService.deleteUser as jest.Mock).mockResolvedValue(mockUser);
+
+    await userController.deleteUser(
+      mockRequest.body as FastifyRequest<{ Params: { id: string } }>,
+      mockReply as FastifyReply
+    );
+
+    expect(userService.deleteUser).toHaveBeenCalled();
+    expect(mockReply.send).toHaveBeenCalledWith(mockUser);
+  });
+
+  it("DeleteUser Function returns code 500", async () => {
+    let mockRequest: Partial<FastifyRequest>;
+    let mockReply: Partial<FastifyReply>;
+
+    mockReply = {
+      send: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+    };
+
+    mockRequest = {
+      params: { id: "1" },
+    };
+
+    const mockError = new Error("Erro!");
+    (userService.deleteUser as jest.Mock).mockRejectedValue(mockError);
+
+    await userController.deleteUser(
+      mockRequest as FastifyRequest<{ Params: { id: string } }>,
+      mockReply as FastifyReply
+    );
+
+    expect(userService.deleteUser).toHaveBeenCalled();
     expect(mockReply.status).toHaveBeenCalledWith(500);
     expect(mockReply.send).toHaveBeenCalledWith({ message: mockError });
   });
