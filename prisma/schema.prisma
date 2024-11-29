@@ -38,6 +38,7 @@ model Projetos {
   gestor      Users          @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
   sprints     Sprints[]
   AlunosProjetos AlunosProjetos[]
+  cards       Cards[]
 
   @@index([id_cliente], map: "fk_projetos_id_cliente")
   @@index([id_gestor], map: "fk_projetos_id_gestor")
@@ -75,6 +76,7 @@ model Cards {
   tempo            Int?
   assigned         String?
   sprint           Int?
+  projeto          Int?
   dod              String[]
   dor              String[]
   xp_frontend      Int?
@@ -84,10 +86,13 @@ model Cards {
   xp_design        Int?
   xp_datalytics    Int?
   indicacao_conteudo String?
+  data_criacao     DateTime?
 
   assignedTo       Users?     @relation("CardAssigned", fields: [assigned], references: [user_clerk_id])
   sprintRelation   Sprints?   @relation(fields: [sprint], references: [id])
+  projectRelation  Projetos?  @relation(fields: [projeto], references: [id])
 
   @@index([assigned], map: "fk_cards_assigned")
   @@index([sprint], map: "fk_cards_sprint")
+  @@index([projeto], map: "fk_cards_projeto")
 }
