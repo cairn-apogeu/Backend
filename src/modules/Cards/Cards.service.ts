@@ -31,7 +31,7 @@ class CardsService {
         data: createCardDto,
       });
     } catch (error) {
-      console.error("Erro no Prisma:", error);
+      console.error("Erro no Prisma:", (error as any).message, error);
       throw new Error("Falha ao criar o card");
     }
   }
@@ -58,7 +58,7 @@ class CardsService {
     }
   }
 
-  async findByAssignedUser(userId: number) {
+  async findByAssignedUser(userId: string) {
     try {
       return await prisma.cards.findMany({
         where: { assigned: userId },
