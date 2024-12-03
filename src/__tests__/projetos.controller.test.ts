@@ -139,7 +139,7 @@ describe("Projetos Controller", () => {
   
     expect(projetoService.newProjeto).toHaveBeenCalledWith(mockRequest.body);
     expect(mockReply.status).toHaveBeenCalledWith(500);
-    expect(mockReply.send).toHaveBeenCalledWith({ message: mockError.message });
+    expect(mockReply.send).toHaveBeenCalledWith({ Message: mockError });
   });
   
 });
