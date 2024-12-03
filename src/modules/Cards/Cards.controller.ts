@@ -15,6 +15,11 @@ class CardsController {
   async findById(request: FastifyRequest<{ Params: { id: number } }>, reply: FastifyReply) {
     const { id } = request.params;
     try {
+      const id = Number(request.params.id); // Converte para número
+      if (isNaN(id)) {
+        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
+      }
+       
       const card = await cardsService.findById(id);
       reply.send(card);
     } catch (error) {
