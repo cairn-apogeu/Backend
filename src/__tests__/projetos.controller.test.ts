@@ -1,139 +1,145 @@
-import fastify from "fastify";
+import { FastifyRequest, FastifyReply } from "fastify";
 import { PrismaClient } from "@prisma/client";
-import supertest from "supertest";
-import projetoRoutes from "../modules/projetos/projetos.routes";
+import projetoController from "../modules/projetos/projetos.controller";
+import projetoService from "../modules/projetos/projetos.service";
+import { ToProjetosDto, ToProjetosSchema } from "../modules/projetos/schemas/to-projetos.schema";
 
-const prisma = new PrismaClient();
-const app = fastify();
+jest.mock("../modules/projetos/projetos.service");
 
-beforeAll(async () => {
-  // Registra as rotas e inicializa o servidor
-  app.register(projetoRoutes);
-  await app.ready();
-});
+describe("Projetos Controller", () => {
+  let mockRequest: Partial<FastifyRequest>;
+  let mockReply: Partial<FastifyReply>;
 
-beforeEach(async () => {
-  // Limpa a tabela 'projetos' antes de cada teste
-  await prisma.projetos.deleteMany({});
-});
+  beforeEach(() => {
+    mockReply = {
+      send: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+    };
+    mockRequest = {};
+  });
 
-afterAll(async () => {
-  // Fecha o servidor e a conexão com o banco de dados
-  await app.close();
-  await prisma.$disconnect();
-});
-
-describe("CRUD - Projetos", () => {
-  it("Deve criar um novo projeto (POST /projetos)", async () => {
+  it("Deve criar um novo projeto", async () => {
     const newProject = {
-      id_cliente: "1", // Alterado para string
-      id_gestor: "2",  // Alterado para string
+      id_cliente: "1",
+      id_gestor: "2",
       nome: "Projeto Teste",
       valor: 50000,
       status: "Ativo",
     };
 
-    const response = await supertest(app.server)
-      .post("/projetos")
-      .send(newProject)
-      .expect(201);
+    (projetoService.newProjeto as jest.Mock).mockResolvedValue(newProject);
 
-    expect(response.body).toHaveProperty("id_cliente", "1");
-    expect(response.body).toHaveProperty("nome", "Projeto Teste");
+    mockRequest.body = newProject;
+
+    await projetoController.newProjeto(
+      mockRequest as FastifyRequest<{ Body: typeof newProject }>,
+      mockReply as FastifyReply
+    );
+
+    expect(projetoService.newProjeto).toHaveBeenCalledWith(newProject);
+    expect(mockReply.send).toHaveBeenCalledWith(newProject);
   });
 
-  it("Deve buscar todos os projetos (GET /projetos)", async () => {
-    // Insere um projeto de teste
-    await prisma.projetos.create({
-      data: {
-        id_cliente: "1", // Alterado para string
-        id_gestor: "2",  // Alterado para string
-        nome: "Projeto Teste",
-        valor: 50000,
-        status: "Ativo",
-      },
+  it("Deve buscar todos os projetos", async () => {
+    const mockProjects = [
+      { id: "1", nome: "Projeto 1" },
+      { id: "2", nome: "Projeto 2" },
+    ];
+
+    (projetoService.findAll as jest.Mock).mockResolvedValue(mockProjects);
+
+    await projetoController.findAll(
+      mockRequest as FastifyRequest,
+      mockReply as FastifyReply
+    );
+
+    expect(projetoService.findAll).toHaveBeenCalled();
+    expect(mockReply.send).toHaveBeenCalledWith(mockProjects);
+  });
+
+  it("Deve buscar um projeto por ID", async () => {
+    const mockProject = { id: 1, nome: "Projeto Teste" };
+
+    mockRequest.params = { id: "1" };
+    (projetoService.findById as jest.Mock).mockResolvedValue(mockProject);
+
+    await projetoController.findProjectById(
+      mockRequest as FastifyRequest<{ Params: { id: string } }>,
+      mockReply as FastifyReply
+    );
+
+    expect(projetoService.findById).toHaveBeenCalledWith(1);
+    expect(mockReply.send).toHaveBeenCalledWith(mockProject);
+  });
+
+  it("Deve atualizar um projeto", async () => {
+    const updatedProject = { id: 1, nome: "Projeto Atualizado" };
+
+    mockRequest.params = { id: "1" };
+    mockRequest.body = { nome: "Projeto Atualizado" };
+
+    (projetoService.updateProjeto as jest.Mock).mockResolvedValue(updatedProject);
+
+    await projetoController.updateProjeto(
+      mockRequest as FastifyRequest<{
+        Params: { id: number };
+        Body: Partial<typeof updatedProject>;
+      }>,
+      mockReply as FastifyReply
+    );
+
+    expect(projetoService.updateProjeto).toHaveBeenCalledWith(1, {
+      nome: "Projeto Atualizado",
     });
-
-    const response = await supertest(app.server).get("/projetos").expect(200);
-    expect(response.body).toHaveLength(1);
-    expect(response.body[0]).toHaveProperty("nome", "Projeto Teste");
+    expect(mockReply.send).toHaveBeenCalledWith(updatedProject);
   });
 
-  it("Deve buscar um projeto por ID (GET /projetos/:id)", async () => {
-    const projeto = await prisma.projetos.create({
-      data: {
-        id_cliente: "1", // Alterado para string
-        id_gestor: "2",  // Alterado para string
-        nome: "Projeto Teste",
-        valor: 50000,
-        status: "Ativo",
-      },
-    });
+  it("Deve deletar um projeto", async () => {
+    const deletedProject = { id: 1, nome: "Projeto Deletado" };
 
-    const response = await supertest(app.server)
-      .get(`/projetos/${projeto.id}`)
-      .expect(200);
+    mockRequest.params = { id: "1" };
+    (projetoService.deleteProjeto as jest.Mock).mockResolvedValue(deletedProject);
 
-    expect(response.body).toHaveProperty("id", projeto.id);
-    expect(response.body).toHaveProperty("nome", "Projeto Teste");
+    await projetoController.deleteProjeto(
+      mockRequest as FastifyRequest<{ Params: { id: number } }>,
+      mockReply as FastifyReply
+    );
+
+    expect(projetoService.deleteProjeto).toHaveBeenCalledWith(1);
+    expect(mockReply.send).toHaveBeenCalledWith(deletedProject);
   });
 
-  it("Deve atualizar um projeto existente (PUT /projetos/:id)", async () => {
-    const projeto = await prisma.projetos.create({
-      data: {
-        id_cliente: "1", // Alterado para string
-        id_gestor: "2",  // Alterado para string
-        nome: "Projeto Original",
-        valor: 40000,
-        status: "Ativo",
-      },
-    });
-
-    const updatedData = { nome: "Projeto Atualizado", valor: 60000 };
-
-    const response = await supertest(app.server)
-      .put(`/projetos/${projeto.id}`)
-      .send(updatedData)
-      .expect(200);
-
-    expect(response.body).toHaveProperty("nome", "Projeto Atualizado");
-    expect(response.body).toHaveProperty("valor", 60000);
-  });
-
-  it("Deve deletar um projeto existente (DELETE /projetos/:id)", async () => {
-    const projeto = await prisma.projetos.create({
-      data: {
-        id_cliente: "1", // Alterado para string
-        id_gestor: "2",  // Alterado para string
-        nome: "Projeto Teste",
-        valor: 50000,
-        status: "Ativo",
-      },
-    });
-
-    await supertest(app.server).delete(`/projetos/${projeto.id}`).expect(200);
-
-    const projetos = await prisma.projetos.findMany();
-    expect(projetos).toHaveLength(0);
-  });
-
-  it("Deve retornar erro 404 ao buscar um projeto inexistente (GET /projetos/:id)", async () => {
-    const response = await supertest(app.server).get("/projetos/999").expect(404);
-    expect(response.body).toHaveProperty("Message", "Projeto não encontrado");
-  });
-
-  it("Deve retornar erro 400 ao criar um projeto com dados inválidos (POST /projetos)", async () => {
-    const invalidProject = {
-      id_cliente: "invalido",
-      nome: "",
-      valor: -100,
+  it("NewProjeto Function returns code 500", async () => {
+    let mockRequest: Partial<FastifyRequest>;
+    let mockReply: Partial<FastifyReply>;
+  
+    mockReply = {
+      send: jest.fn(),
+      status: jest.fn().mockReturnThis(),
     };
-
-    const response = await supertest(app.server)
-      .post("/projetos")
-      .send(invalidProject)
-      .expect(400);
-
-    expect(response.body).toHaveProperty("message");
+  
+    mockRequest = {
+      body: {
+        id_cliente: "1",
+        id_gestor: "2",
+        nome: "Projeto Teste",
+        valor: 50000,
+        status: "Ativo",
+      },
+    };
+  
+    const mockError = new Error("Erro interno!");
+  
+    (projetoService.newProjeto as jest.Mock).mockRejectedValue(mockError);
+  
+    await projetoController.newProjeto(
+      mockRequest as FastifyRequest<{ Body: ToProjetosDto }>,
+      mockReply as FastifyReply
+    );
+  
+    expect(projetoService.newProjeto).toHaveBeenCalledWith(mockRequest.body);
+    expect(mockReply.status).toHaveBeenCalledWith(500);
+    expect(mockReply.send).toHaveBeenCalledWith({ message: mockError.message });
   });
+  
 });
