@@ -71,14 +71,32 @@ class CardsController {
   }
 
   async findBySprint(request: FastifyRequest<{ Params: { sprintId: number } }>, reply: FastifyReply) {
-    const { sprintId } = request.params;
     try {
+      const sprintId = Number(request.params.sprintId); // Converte para número
+      if (isNaN(sprintId)) {
+        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
+      }
       const cards = await cardsService.findBySprint(sprintId);
       reply.send(cards);
     } catch (error) {
       reply.status(500).send({ message: error });
     }
   }
+
+  async findByProject(request: FastifyRequest<{ Params: { projectId: number } }>, reply: FastifyReply) {
+    try {
+      const projectId = Number(request.params.projectId); // Converte para número
+      if (isNaN(projectId)) {
+        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
+      }
+       
+      const card = await cardsService.findById(projectId);
+      reply.send(card);
+    } catch (error) {
+      reply.status(404).send({ message: error });
+    }
+  }
+
 }
 
 export default new CardsController();
