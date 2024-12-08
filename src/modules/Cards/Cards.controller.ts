@@ -90,7 +90,7 @@ class CardsController {
         return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
       }
        
-      const card = await cardsService.findById(projectId);
+      const card = await cardsService.findByProject(projectId);
       reply.send(card);
     } catch (error) {
       reply.status(404).send({ message: error });
