@@ -1,6 +1,6 @@
 -- CreateTable
 CREATE TABLE "Users" (
-    "user_clerk_id" INTEGER NOT NULL,
+    "user_clerk_id" TEXT NOT NULL,
     "tipo_perfil" VARCHAR(10) NOT NULL,
     "discord" VARCHAR(20),
     "linkedin" VARCHAR(30),
@@ -8,7 +8,7 @@ CREATE TABLE "Users" (
     "objetivo_curto" TEXT,
     "objetivo_medio" TEXT,
     "objetivo_longo" TEXT,
-    "sexo" VARCHAR(10),
+    "genero" VARCHAR(10),
     "nascimento" TIMESTAMP(3),
 
     CONSTRAINT "Users_pkey" PRIMARY KEY ("user_clerk_id")
@@ -17,8 +17,8 @@ CREATE TABLE "Users" (
 -- CreateTable
 CREATE TABLE "Projetos" (
     "id" SERIAL NOT NULL,
-    "id_cliente" INTEGER NOT NULL,
-    "id_gestor" INTEGER NOT NULL,
+    "id_cliente" TEXT NOT NULL,
+    "id_gestor" TEXT NOT NULL,
     "nome" VARCHAR(100) NOT NULL,
     "valor" INTEGER NOT NULL,
     "status" VARCHAR(50) NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE "Projetos" (
 -- CreateTable
 CREATE TABLE "AlunosProjetos" (
     "projeto_id" INTEGER NOT NULL,
-    "aluno_id" INTEGER NOT NULL,
+    "aluno_id" TEXT NOT NULL,
 
     CONSTRAINT "AlunosProjetos_pkey" PRIMARY KEY ("projeto_id","aluno_id")
 );
@@ -51,8 +51,9 @@ CREATE TABLE "Cards" (
     "status" VARCHAR(20) NOT NULL,
     "tempo_estimado" INTEGER,
     "tempo" INTEGER,
-    "assigned" INTEGER,
+    "assigned" TEXT,
     "sprint" INTEGER,
+    "projeto" INTEGER,
     "dod" TEXT[],
     "dor" TEXT[],
     "xp_frontend" INTEGER,
@@ -62,6 +63,7 @@ CREATE TABLE "Cards" (
     "xp_design" INTEGER,
     "xp_datalytics" INTEGER,
     "indicacao_conteudo" TEXT,
+    "data_criacao" TIMESTAMP(3),
 
     CONSTRAINT "Cards_pkey" PRIMARY KEY ("id")
 );
@@ -87,6 +89,9 @@ CREATE INDEX "fk_cards_assigned" ON "Cards"("assigned");
 -- CreateIndex
 CREATE INDEX "fk_cards_sprint" ON "Cards"("sprint");
 
+-- CreateIndex
+CREATE INDEX "fk_cards_projeto" ON "Cards"("projeto");
+
 -- AddForeignKey
 ALTER TABLE "Projetos" ADD CONSTRAINT "Projetos_id_cliente_fkey" FOREIGN KEY ("id_cliente") REFERENCES "Users"("user_clerk_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -107,3 +112,6 @@ ALTER TABLE "Cards" ADD CONSTRAINT "Cards_assigned_fkey" FOREIGN KEY ("assigned"
 
 -- AddForeignKey
 ALTER TABLE "Cards" ADD CONSTRAINT "Cards_sprint_fkey" FOREIGN KEY ("sprint") REFERENCES "Sprints"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Cards" ADD CONSTRAINT "Cards_projeto_fkey" FOREIGN KEY ("projeto") REFERENCES "Projetos"("id") ON DELETE SET NULL ON UPDATE CASCADE;

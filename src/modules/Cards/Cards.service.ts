@@ -74,9 +74,21 @@ class CardsService {
         where: { sprint: sprintId },
       });
     } catch (error) {
-      throw new Error("Falha ao recuperar os cards para o sprint");
+      throw new Error("Falha ao recuperar os cards para a sprint");
     }
   }
+
+  async findByProject(projectId: number) {
+    try {
+      return await prisma.cards.findMany({
+        where: { projeto: projectId },
+      });
+    } catch (error) {
+      throw new Error("Falha ao recuperar os cards para o projeto");
+    }
+  }
+
+  
 }
 
 export default new CardsService();
