@@ -43,7 +43,7 @@ class CardsController {
     const { id } = request.params;
     const updateCardDto = CardsUpdateSchema.parse(request.body);  
     try {
-      const updatedCard = await cardsService.update(id, updateCardDto);
+      const updatedCard = await cardsService.update(Number(id), updateCardDto);
       reply.send(updatedCard);
     } catch (error) {
       reply.status(500).send({ message: error });

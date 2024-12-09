@@ -86,7 +86,7 @@ model Cards {
   xp_design        Int?
   xp_datalytics    Int?
   indicacao_conteudo String?
-  data_criacao     DateTime?
+  data_criacao     DateTime? @default(now())
 
   assignedTo       Users?     @relation("CardAssigned", fields: [assigned], references: [user_clerk_id])
   sprintRelation   Sprints?   @relation(fields: [sprint], references: [id])

@@ -38,6 +38,8 @@ class CardsService {
   
 
   async update(id: number, updateCardDto: Partial<CardsDto>) {
+    console.log(id);
+    
     try {
       return await prisma.cards.update({
         where: { id },
