@@ -15,6 +15,11 @@ class CardsController {
   async findById(request: FastifyRequest<{ Params: { id: number } }>, reply: FastifyReply) {
     const { id } = request.params;
     try {
+      const id = Number(request.params.id); // Converte para número
+      if (isNaN(id)) {
+        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
+      }
+       
       const card = await cardsService.findById(id);
       reply.send(card);
     } catch (error) {
@@ -38,7 +43,7 @@ class CardsController {
     const { id } = request.params;
     const updateCardDto = CardsUpdateSchema.parse(request.body);  
     try {
-      const updatedCard = await cardsService.update(id, updateCardDto);
+      const updatedCard = await cardsService.update(Number(id), updateCardDto);
       reply.send(updatedCard);
     } catch (error) {
       reply.status(500).send({ message: error });
@@ -55,7 +60,7 @@ class CardsController {
     }
   }
 
-  async findByAssignedUser(request: FastifyRequest<{ Params: { userId: number } }>, reply: FastifyReply) {
+  async findByAssignedUser(request: FastifyRequest<{ Params: { userId: string } }>, reply: FastifyReply) {
     const { userId } = request.params;
     try {
       const cards = await cardsService.findByAssignedUser(userId);
@@ -66,14 +71,32 @@ class CardsController {
   }
 
   async findBySprint(request: FastifyRequest<{ Params: { sprintId: number } }>, reply: FastifyReply) {
-    const { sprintId } = request.params;
     try {
+      const sprintId = Number(request.params.sprintId); // Converte para número
+      if (isNaN(sprintId)) {
+        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
+      }
       const cards = await cardsService.findBySprint(sprintId);
       reply.send(cards);
     } catch (error) {
       reply.status(500).send({ message: error });
     }
   }
+
+  async findByProject(request: FastifyRequest<{ Params: { projectId: number } }>, reply: FastifyReply) {
+    try {
+      const projectId = Number(request.params.projectId); // Converte para número
+      if (isNaN(projectId)) {
+        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
+      }
+       
+      const card = await cardsService.findByProject(projectId);
+      reply.send(card);
+    } catch (error) {
+      reply.status(404).send({ message: error });
+    }
+  }
+
 }
 
 export default new CardsController();

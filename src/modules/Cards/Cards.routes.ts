@@ -9,6 +9,7 @@ async function cardsRoutes(fastify: FastifyInstance) {
   fastify.delete('/cards/:id', CardsController.delete);
   fastify.get('/cards/assigned/:userId', CardsController.findByAssignedUser);
   fastify.get('/cards/sprint/:sprintId', CardsController.findBySprint);
+  fastify.get('/cards/project/:projectId', CardsController.findByProject);
 }
 
 export default cardsRoutes;
