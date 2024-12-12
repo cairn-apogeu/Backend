@@ -7,7 +7,7 @@ export const CardsUpdateSchema = z.object({
   status: z.string().max(20).optional(),
   tempo_estimado: z.number().optional(),
   tempo: z.number().optional(),
-  assigned: z.number().optional(),
+  assigned: z.string().optional(),
   sprint: z.number().optional(),
   dod: z.array(z.string()).optional(),
   dor: z.array(z.string()).optional(),
