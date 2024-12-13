@@ -77,8 +77,8 @@ model Cards {
   assigned         String?
   sprint           Int?
   projeto          Int?
-  dod              String[]
-  dor              String[]
+  dod              String
+  dor              String
   xp_frontend      Int?
   xp_backend       Int?
   xp_negocios      Int?
