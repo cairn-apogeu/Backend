@@ -9,39 +9,56 @@ datasource db {
 
 model Users {
   user_clerk_id   String       @id
-  tipo_perfil     String    @db.VarChar(10)
-  discord         String?   @db.VarChar(20)
-  linkedin        String?   @db.VarChar(30)
-  github          String?   @db.VarChar(30)
+  tipo_perfil     String       @db.VarChar(10)
+  discord         String?      @db.VarChar(20)
+  linkedin        String?      @db.VarChar(30)
+  github          String?      @db.VarChar(30)
   objetivo_curto  String?
   objetivo_medio  String?
   objetivo_longo  String?
-  genero          String?   @db.VarChar(10)
+  genero          String?      @db.VarChar(10)
   nascimento      DateTime?
 
-  projetosCliente Projetos[] @relation("ProjetosCliente")
-  projetosGestor  Projetos[] @relation("ProjetosGestor")
-  cards           Cards[]    @relation("CardAssigned")
+  projetosCliente Projetos[]   @relation("ProjetosCliente")
+  projetosGestor  Projetos[]   @relation("ProjetosGestor")
+  cards           Cards[]      @relation("CardAssigned")
 
   AlunosProjetos  AlunosProjetos[]
 }
 
 model Projetos {
-  id          Int            @id @default(autoincrement())
-  id_cliente  String
-  id_gestor   String
-  nome        String         @db.VarChar(100)
-  valor       Int
-  status      String         @db.VarChar(50)
+  id           Int            @id @default(autoincrement())
+  id_cliente   String
+  id_gestor    String
+  nome         String         @db.VarChar(100)
+  valor        Int
+  status       String         @db.VarChar(50)
+  data_inicio  DateTime
+  duracao_dias Int
+  data_fim     DateTime
 
-  cliente     Users          @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
-  gestor      Users          @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
-  sprints     Sprints[]
+  cliente      Users          @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
+  gestor       Users          @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
+  sprints      Sprints[]
   AlunosProjetos AlunosProjetos[]
-  cards       Cards[]
+  cards        Cards[]
 
   @@index([id_cliente], map: "fk_projetos_id_cliente")
   @@index([id_gestor], map: "fk_projetos_id_gestor")
+}
+
+model Sprints {
+  id           Int       @id @default(autoincrement())
+  id_projeto   Int
+  numero       Int
+  data_inicio  DateTime
+  duracao_dias Int
+  data_fim     DateTime
+
+  projeto      Projetos @relation(fields: [id_projeto], references: [id])
+  cards        Cards[]
+
+  @@index([id_projeto], map: "fk_sprints_id_projeto")
 }
 
 model AlunosProjetos {
@@ -54,17 +71,6 @@ model AlunosProjetos {
   @@id([projeto_id, aluno_id])
   @@index([projeto_id], map: "fk_alunos_projeto_id")
   @@index([aluno_id], map: "fk_alunos_aluno_id")
-}
-
-model Sprints {
-  id         Int       @id @default(autoincrement())
-  id_projeto Int
-  numero     Int
-
-  projeto    Projetos @relation(fields: [id_projeto], references: [id])
-  cards      Cards[]
-
-  @@index([id_projeto], map: "fk_sprints_id_projeto")
 }
 
 model Cards {
