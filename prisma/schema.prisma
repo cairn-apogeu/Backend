@@ -33,6 +33,9 @@ model Projetos {
   nome        String         @db.VarChar(100)
   valor       Int
   status      String         @db.VarChar(50)
+  token       String?        @db.VarChar(100)
+  repositorio String?        @db.VarChar(100)
+  owner       String?        @db.VarChar(100)
 
   cliente     Users          @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
   gestor      Users          @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
