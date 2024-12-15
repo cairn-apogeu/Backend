@@ -18,7 +18,6 @@ class ProjetoController {
     reply: FastifyReply
   ) {
     const { id } = ProjetosParamsIdSchema.parse(request.params);
-    console.log(id);
     try {
       const projeto = await projetoService.findById(Number(id));
       reply.send(projeto);
