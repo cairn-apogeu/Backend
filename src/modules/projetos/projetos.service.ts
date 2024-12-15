@@ -13,7 +13,7 @@ class ProjetoService {
   async findById(id: number) {
     try {
       return await prisma.projetos.findUnique({
-        where: { id: 1 },
+        where: { id },
       });
     } catch (error) {
       console.log("Erro no service", error);
