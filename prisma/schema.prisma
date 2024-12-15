@@ -33,7 +33,7 @@ model Projetos {
   nome        String         @db.VarChar(100)
   valor       Int
   status      String         @db.VarChar(50)
-  token       String?        @db.VarChar(100)
+  token       String?        @db.VarChar(512)
   repositorio String?        @db.VarChar(100)
   owner       String?        @db.VarChar(100)
 

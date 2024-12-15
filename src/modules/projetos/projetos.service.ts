@@ -1,5 +1,7 @@
 import prisma from "../../clients/prisma.client";
 import { ToProjetosDto } from "./schemas/to-projetos.schema";
+import { encryptData } from '../../utils/encryptData';
+import { decryptData } from '../../utils/decryptData';
 
 class ProjetoService {
   async findAll() {
@@ -12,14 +14,20 @@ class ProjetoService {
 
   async findById(id: number) {
     try {
-      return await prisma.projetos.findUnique({
-        where: { id },
-      });
+        const projeto = await prisma.projetos.findUnique({
+            where: { id },
+        });
+
+        if (projeto && projeto.token) {
+            projeto.token = decryptData(projeto.token);
+        }
+
+        return projeto;
     } catch (error) {
-      console.log("Erro no service", error);
-      throw new Error("Projeto não encontrado");
+        console.log("Erro no service", error);
+        throw new Error("Projeto não encontrado");
     }
-  }
+}
 
   async newProjeto(toProjetosDto: ToProjetosDto) {
     try {
@@ -39,14 +47,18 @@ class ProjetoService {
 
   async updateProjeto(id: number, toProjetosDto: Partial<ToProjetosDto>) {
     try {
-      return await prisma.projetos.update({
-        where: { id },
-        data: toProjetosDto,
-      });
+        if (toProjetosDto.token) {
+            toProjetosDto.token = await encryptData(toProjetosDto.token);
+        }
+        return await prisma.projetos.update({
+            where: { id },
+            data: toProjetosDto,
+        });
     } catch (error) {
-      throw new Error("Falha ao atualizar projeto");
+        console.error("Erro ao atualizar projeto:", error);
+        throw new Error("Falha ao atualizar projeto");
     }
-  }
+}
 
   async deleteProjeto(id: number) {
     try {
