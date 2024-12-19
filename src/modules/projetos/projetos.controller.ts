@@ -72,6 +72,22 @@ class ProjetoController {
       reply.status(500).send({ Message: error });
     }
   }
+
+  async fetchGithubContent(
+    request: FastifyRequest<{ Params: { id: string }; Querystring: { filePath: string; branch: string } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { id } = request.params;
+      const { filePath, branch } = request.query;
+  
+      // Converta o ID para número antes de passar para o service
+      const content = await projetoService.getGithubContent(Number(id), filePath, branch);
+      reply.send({ content });
+    } catch (error) {
+      reply.status(500).send({ message: "Erro ao buscar conteúdo do GitHub." });
+    }
+  }  
 }
 
 export default new ProjetoController();

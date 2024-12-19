@@ -3,10 +3,13 @@ import path from 'path';
 import forge from 'node-forge';
 
 export const decryptData = (encryptedData: string) => {
-  const privateKeyPath = path.join(process.cwd(), 'private.pem');
-  const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
+  const privateKeyBase64 = process.env.PRIVATE_KEY;
+  if (!privateKeyBase64) {
+    throw new Error('Chave privada não encontrada nas variáveis de ambiente');
+  }
 
-  const rsa = forge.pki.privateKeyFromPem(privateKey);
+  const privateKeyPem = Buffer.from(privateKeyBase64, 'base64').toString('utf8');
+  const rsa = forge.pki.privateKeyFromPem(privateKeyPem);
   const encryptedBytes = forge.util.decode64(encryptedData);
   
   const decrypted = rsa.decrypt(encryptedBytes, 'RSA-OAEP');

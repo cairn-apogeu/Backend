@@ -2,6 +2,7 @@ import prisma from "../../clients/prisma.client";
 import { ToProjetosDto } from "./schemas/to-projetos.schema";
 import { encryptData } from '../../utils/encryptData';
 import { decryptData } from '../../utils/decryptData';
+import axios from "axios";
 
 class ProjetoService {
   async findAll() {
@@ -17,10 +18,6 @@ class ProjetoService {
         const projeto = await prisma.projetos.findUnique({
             where: { id },
         });
-
-        if (projeto && projeto.token) {
-            projeto.token = decryptData(projeto.token);
-        }
 
         return projeto;
     } catch (error) {
@@ -67,6 +64,33 @@ class ProjetoService {
       });
     } catch (error) {
       throw new Error("Falha ao deletar projeto");
+    }
+  }
+
+  async getGithubContent(id: number, filePath: string, branch: string) {
+    try {
+      const projeto = await prisma.projetos.findUnique({ where: { id } });
+
+      if (!projeto || !projeto.token) {
+        throw new Error("Projeto ou token não encontrado.");
+      }
+
+      const token = decryptData(projeto.token);
+      const url = `https://api.github.com/repos/${projeto.owner}/${projeto.repositorio}/contents/${filePath}`;
+      console.log(projeto.owner, projeto.repositorio, token, url);
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3.raw",
+        },
+        params: { ref: branch },
+      });
+
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar conteúdo do GitHub:", error);
+      throw new Error("Erro ao buscar conteúdo do GitHub.");
     }
   }
 }
