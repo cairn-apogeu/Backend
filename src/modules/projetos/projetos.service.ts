@@ -44,18 +44,24 @@ class ProjetoService {
 
   async updateProjeto(id: number, toProjetosDto: Partial<ToProjetosDto>) {
     try {
-        if (toProjetosDto.token) {
-            toProjetosDto.token = await encryptData(toProjetosDto.token);
+      if (toProjetosDto.token) {
+        try {
+          toProjetosDto.token = await encryptData(toProjetosDto.token);
+        } catch (encryptError) {
+          console.error("Erro ao criptografar o token:", encryptError);
+          throw new Error("Falha ao criptografar o token");
         }
-        return await prisma.projetos.update({
-            where: { id },
-            data: toProjetosDto,
-        });
+      }
+      return await prisma.projetos.update({
+        where: { id },
+        data: toProjetosDto,
+      });
     } catch (error) {
-        console.error("Erro ao atualizar projeto:", error);
-        throw new Error("Falha ao atualizar projeto");
+      console.error("Erro ao atualizar projeto:", error);
+      throw new Error("Falha ao atualizar projeto");
     }
-}
+  }
+   
 
   async deleteProjeto(id: number) {
     try {
