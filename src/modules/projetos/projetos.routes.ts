@@ -7,4 +7,5 @@ export default async function projetoRoutes(app: FastifyInstance) {
   app.post("/projetos", projetoController.newProjeto);
   app.put("/projetos/:id", projetoController.updateProjeto);
   app.delete("/projetos/:id", projetoController.deleteProjeto);
+  app.get("/projetos/:id/github-content", projetoController.fetchGithubContent);
 }
