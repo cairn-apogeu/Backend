@@ -80,10 +80,13 @@ class ProjetoController {
     try {
       const { id } = request.params;
       const { filePath, branch } = request.query;
+
   
       // Converta o ID para número antes de passar para o service
       const content = await projetoService.getGithubContent(Number(id), filePath, branch);
       reply.send({ content });
+      console.log({content});
+      
     } catch (error) {
       reply.status(500).send({ message: "Erro ao buscar conteúdo do GitHub." });
     }

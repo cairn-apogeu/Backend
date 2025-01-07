@@ -82,7 +82,7 @@ class ProjetoService {
       }
 
       const token = decryptData(projeto.token);
-      const url = `https://api.github.com/repos/${projeto.owner}/${projeto.repositorio}/contents/${filePath}`;
+      const url = `https://api.github.com/repos/${projeto.owner}/${projeto.repositorio}/contents`;
       console.log(projeto.owner, projeto.repositorio, token, url);
       const response = await axios.get(url, {
         headers: {
