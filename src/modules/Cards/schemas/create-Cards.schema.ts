@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export const CardsSchema = z.object({
+  projeto: z.number().int(),
   titulo: z.string().max(100),
   descricao: z.string().optional(),
   status: z.string().max(20),
