@@ -27,36 +27,34 @@ model Users {
 }
 
 model Projetos {
-  id           Int            @id @default(autoincrement())
-  id_cliente   String
-  id_gestor    String
-  nome         String         @db.VarChar(100)
-  valor        Int
-  status       String         @db.VarChar(50)
-  data_inicio  DateTime
-  duracao_dias Int
-  data_fim     DateTime
+  id          Int            @id @default(autoincrement())
+  id_cliente  String
+  id_gestor   String
+  nome        String         @db.VarChar(100)
+  valor       Int
+  status      String         @db.VarChar(50)
+  dia_inicio  DateTime       @default(now())
+  dia_fim     DateTime       @default(now())
 
-  cliente      Users          @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
-  gestor       Users          @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
-  sprints      Sprints[]
+  cliente     Users          @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
+  gestor      Users          @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
+  sprints     Sprints[]
   AlunosProjetos AlunosProjetos[]
-  cards        Cards[]
+  cards       Cards[]
 
   @@index([id_cliente], map: "fk_projetos_id_cliente")
   @@index([id_gestor], map: "fk_projetos_id_gestor")
 }
 
 model Sprints {
-  id           Int       @id @default(autoincrement())
-  id_projeto   Int
-  numero       Int
-  data_inicio  DateTime
-  duracao_dias Int
-  data_fim     DateTime
+  id         Int       @id @default(autoincrement())
+  id_projeto Int
+  numero     Int
+  dia_inicio DateTime       @default(now())
+  dia_fim    DateTime       @default(now())
 
-  projeto      Projetos @relation(fields: [id_projeto], references: [id])
-  cards        Cards[]
+  projeto    Projetos @relation(fields: [id_projeto], references: [id])
+  cards      Cards[]
 
   @@index([id_projeto], map: "fk_sprints_id_projeto")
 }
