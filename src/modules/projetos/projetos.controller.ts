@@ -74,18 +74,17 @@ class ProjetoController {
   }
 
   async fetchGithubContent(
-    request: FastifyRequest<{ Params: { id: string }; Querystring: { filePath: string; branch: string } }>,
+    request: FastifyRequest<{ Params: { id: string };}>,
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
-      const { filePath, branch } = request.query;
+      const { id } = request.params
 
-  
-      // Converta o ID para número antes de passar para o service
-      const content = await projetoService.getGithubContent(Number(id), filePath, branch);
+      // Filepath e branch hardcoded para que só tenha acesso à branch main e que o caso base da recursão seja todo o repositório
+    
+      const content = await projetoService.getGithubContent(Number(id), "", "main");
       reply.send({ content });
-      console.log({content});
+      console.log(content);
       
     } catch (error) {
       reply.status(500).send({ message: "Erro ao buscar conteúdo do GitHub." });
