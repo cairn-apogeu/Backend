@@ -1,7 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import cardsService from './Cards.service';
-import  { CardsDto, CardsSchema } from './schemas/create-Cards.schema';
-import { CardsUpdateSchema } from './schemas/update-Cards.schema';  
+
 class CardsController {
   async findAll(request: FastifyRequest, reply: FastifyReply) {
     try {
@@ -15,11 +14,6 @@ class CardsController {
   async findById(request: FastifyRequest<{ Params: { id: number } }>, reply: FastifyReply) {
     const { id } = request.params;
     try {
-      const id = Number(request.params.id); // Converte para número
-      if (isNaN(id)) {
-        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
-      }
-       
       const card = await cardsService.findById(id);
       reply.send(card);
     } catch (error) {
@@ -27,24 +21,20 @@ class CardsController {
     }
   }
 
-  async create(request: FastifyRequest<{ Body: CardsDto }>, reply: FastifyReply) {
+  async create(request: FastifyRequest, reply: FastifyReply) {
     try {
-      console.log("Request body recebido:", request.body);
-      const createCardDto = CardsSchema.parse(request.body);
-      const newCard = await cardsService.create(createCardDto);
-      reply.code(201).send(newCard);
-    } catch (error: any) {
-      console.error("Erro ao criar o card:", error);
-      reply.status(500).send({ message: error.message || "Erro interno do servidor" });
+      const card = await cardsService.create(request.body);
+      reply.send(card);
+    } catch (error) {
+      reply.status(500).send({ message: error });
     }
   }
 
-  async update(request: FastifyRequest<{ Params: { id: number }; Body: Partial<CardsDto> }>, reply: FastifyReply) {
+  async update(request: FastifyRequest<{ Params: { id: number } }>, reply: FastifyReply) {
     const { id } = request.params;
-    const updateCardDto = CardsUpdateSchema.parse(request.body);  
     try {
-      const updatedCard = await cardsService.update(Number(id), updateCardDto);
-      reply.send(updatedCard);
+      const card = await cardsService.update(id, request.body);
+      reply.send(card);
     } catch (error) {
       reply.status(500).send({ message: error });
     }
@@ -54,7 +44,7 @@ class CardsController {
     const { id } = request.params;
     try {
       await cardsService.delete(id);
-      reply.status(204).send();
+      reply.send({ message: 'Card deleted successfully' });
     } catch (error) {
       reply.status(500).send({ message: error });
     }
@@ -71,11 +61,8 @@ class CardsController {
   }
 
   async findBySprint(request: FastifyRequest<{ Params: { sprintId: number } }>, reply: FastifyReply) {
+    const { sprintId } = request.params;
     try {
-      const sprintId = Number(request.params.sprintId); // Converte para número
-      if (isNaN(sprintId)) {
-        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
-      }
       const cards = await cardsService.findBySprint(sprintId);
       reply.send(cards);
     } catch (error) {
@@ -83,20 +70,25 @@ class CardsController {
     }
   }
 
-  async findByProject(request: FastifyRequest<{ Params: { projectId: number } }>, reply: FastifyReply) {
+  async findByProject(request: FastifyRequest<{ Params: { projectId: string } }>, reply: FastifyReply) {
+    const projectIdParam = request.params.projectId;
+    const projectId = Number(projectIdParam);
+
+    // Validação do projectId
+    if (isNaN(projectId)) {
+      console.error(`projectId inválido: ${projectIdParam}`);
+      reply.status(400).send({ message: "projectId inválido fornecido." });
+      return;
+    }
+
     try {
-      const projectId = Number(request.params.projectId); // Converte para número
-      if (isNaN(projectId)) {
-        return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
-      }
-       
-      const card = await cardsService.findByProject(projectId);
-      reply.send(card);
+      const cards = await cardsService.findByProject(projectId);
+      reply.send(cards);
     } catch (error) {
-      reply.status(404).send({ message: error });
+      console.error("Erro ao buscar cards por projeto:", error);
+      reply.status(500).send({ message: "Erro interno no servidor" });
     }
   }
-
 }
 
-export default new CardsController();
+export default CardsController;
