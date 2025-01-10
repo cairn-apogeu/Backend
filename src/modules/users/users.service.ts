@@ -25,6 +25,30 @@ class UserService {
     }
   }
 
+  async findUserByProjectId(id: string) {
+    try {
+      const projetoId = parseInt(id, 10); // Converte o ID para Int
+      if (isNaN(projetoId)) {
+        throw new Error("ID do projeto inválido");
+      }
+  
+      const alunosProjetos = await prisma.alunosProjetos.findMany({
+        where: { projeto_id: projetoId },
+        include: {
+          aluno: true, // Inclui detalhes dos alunos associados
+        },
+      });
+  
+      if (alunosProjetos.length === 0) {
+        throw new Error("Nenhum aluno encontrado para este projeto");
+      }
+  
+      return alunosProjetos.map((ap) => ap.aluno); // Retorna apenas os detalhes dos alunos
+    } catch (error) {
+      throw new Error( "Erro ao buscar alunos do projeto");
+    }
+  }
+
   async newUser(toUserDto: ToUserDto) {
     try {
 

@@ -27,6 +27,19 @@ class UserController {
     }
   }
 
+      async findUserbyProjectId(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+      ) {
+        const { id } = UserIdSchema.parse(request.params);
+        try {
+          const user = await userService.findUserByProjectId(id);
+          reply.send(user);
+        } catch (error) {
+          reply.status(404).send({ message: error });
+        }
+      }
+
   async newUser(
     request: FastifyRequest<{ Body: ToUserDto }>,
     reply: FastifyReply
