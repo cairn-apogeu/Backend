@@ -1,5 +1,6 @@
 import prisma from "../../clients/prisma.client";
 import { CardsDto } from "./schemas/create-Cards.schema";
+import { CardsUpdateDto } from "./schemas/update-Cards.schema";
 
 class CardsService {
   async findAll() {
@@ -37,7 +38,7 @@ class CardsService {
   }
   
 
-  async update(id: number, updateCardDto: Partial<CardsDto>) {
+  async update(id: number, updateCardDto: CardsUpdateDto) {
     console.log(id);
     
     try {
@@ -46,7 +47,9 @@ class CardsService {
         data: updateCardDto,
       });
     } catch (error) {
+      console.log(error);
       throw new Error("Falha ao atualizar o card");
+      
     }
   }
 

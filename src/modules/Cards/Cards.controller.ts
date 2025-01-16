@@ -40,13 +40,17 @@ class CardsController {
   }
 
   async update(request: FastifyRequest<{ Params: { id: number }; Body: Partial<CardsDto> }>, reply: FastifyReply) {
-    const { id } = request.params;
-    const updateCardDto = CardsUpdateSchema.parse(request.body);  
     try {
+      const { id } = request.params;
+      const updateCardDto = CardsUpdateSchema.parse(request.body);  
       const updatedCard = await cardsService.update(Number(id), updateCardDto);
       reply.send(updatedCard);
+      
     } catch (error) {
+      
       reply.status(500).send({ message: error });
+      console.log("update: ", error);
+
     }
   }
 

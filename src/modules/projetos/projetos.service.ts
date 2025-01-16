@@ -14,6 +14,7 @@ class ProjetoService {
     try {
       return await prisma.projetos.findUnique({
         where: { id: 1 },
+        include: {sprints: true}
       });
     } catch (error) {
       console.log("Erro no service", error);
