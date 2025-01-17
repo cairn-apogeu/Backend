@@ -27,6 +27,23 @@ class ProjetoController {
     }
   }
 
+  async findProjectByUserId(
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply
+  ) {
+    const { id } = ProjetosParamsIdSchema.parse(request.params); // Validação do ID
+    try {
+      const projetos = await projetoService.findByUserId(id);
+      if (projetos.length === 0) {
+        reply.status(404).send({ message: "Nenhum projeto encontrado para o aluno." });
+      } else {
+        reply.send(projetos);
+      }
+    } catch (error) {
+      reply.status(500).send({ message: error });
+    }
+  }
+
   async newProjeto(
     request: FastifyRequest<{ Body: ToProjetosDto }>,
     reply: FastifyReply

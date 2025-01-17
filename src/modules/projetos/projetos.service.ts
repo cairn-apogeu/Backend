@@ -26,16 +26,32 @@ class ProjetoService {
 
   async findById(id: number) {
     try {
-        const projeto = await prisma.projetos.findUnique({
-            where: { id },
-        });
-
-        return projeto;
+      return await prisma.projetos.findUnique({
+        where: { id: 1 },
+        include: {sprints: true}
+      });
     } catch (error) {
         console.log("Erro no service", error);
         throw new Error("Projeto não encontrado");
     }
 }
+
+  async findByUserId(id: string) {
+    try {
+      // Busca os projetos relacionados ao aluno pelo ID
+      const projetos = await prisma.alunosProjetos.findMany({
+        where: { aluno_id: id },
+        include: {
+          projeto: true, // Inclui os detalhes do projeto
+        },
+      });
+  
+      // Retorna apenas os projetos
+      return projetos.map((alunoProjeto) => alunoProjeto.projeto);
+    } catch (error) {
+      throw new Error("Projetos não encontrados para o aluno.");
+    }
+  }
 
   async newProjeto(toProjetosDto: ToProjetosDto) {
     try {
