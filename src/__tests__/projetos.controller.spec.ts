@@ -25,6 +25,9 @@ describe("Projetos Controller", () => {
       nome: "Projeto Teste",
       valor: 50000,
       status: "Ativo",
+      token: "token",
+      repositorio: "repositorio",
+      owner: "owner",
     };
 
     (projetoService.newProjeto as jest.Mock).mockResolvedValue(newProject);

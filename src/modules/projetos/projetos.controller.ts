@@ -18,7 +18,6 @@ class ProjetoController {
     reply: FastifyReply
   ) {
     const { id } = ProjetosParamsIdSchema.parse(request.params);
-    console.log(id);
     try {
       const projeto = await projetoService.findById(Number(id));
       reply.send(projeto);
@@ -90,6 +89,24 @@ class ProjetoController {
       reply.status(500).send({ Message: error });
     }
   }
+
+  async fetchGithubContent(
+    request: FastifyRequest<{ Params: { id: string };}>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { id } = request.params
+
+      // Filepath e branch hardcoded para que só tenha acesso à branch main e que o caso base da recursão seja todo o repositório
+    
+      const content = await projetoService.getGithubContent(Number(id), "", "main");
+      reply.send(content );
+      console.log(content);
+      
+    } catch (error) {
+      reply.status(500).send({ message: "Erro ao buscar conteúdo do GitHub." });
+    }
+  }  
 }
 
 export default new ProjetoController();
