@@ -83,7 +83,7 @@ class ProjetoController {
       // Filepath e branch hardcoded para que só tenha acesso à branch main e que o caso base da recursão seja todo o repositório
     
       const content = await projetoService.getGithubContent(Number(id), "", "main");
-      reply.send({ content });
+      reply.send(content );
       console.log(content);
       
     } catch (error) {
