@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Cards" ALTER COLUMN "data_criacao" SET DEFAULT CURRENT_TIMESTAMP;

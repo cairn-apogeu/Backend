@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Projetos" ALTER COLUMN "token" SET DATA TYPE VARCHAR(512);

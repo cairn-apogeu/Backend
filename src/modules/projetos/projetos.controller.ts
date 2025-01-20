@@ -21,6 +21,8 @@ class ProjetoController {
     try {
       const projeto = await projetoService.findById(Number(id));
       reply.send(projeto);
+      console.log(projeto?.sprints);
+      
     } catch (error) {
       console.log("Erro no controller", error);
       reply.status(404).send({ Message: error });

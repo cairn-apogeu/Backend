@@ -9,6 +9,8 @@ class SprintController {
     try {
       const sprints = await sprintService.findAll();
       reply.send(sprints);
+      console.log(sprints);
+      
     } catch (error) {
       reply.status(500).send({ message: error });
     }
