@@ -53,9 +53,7 @@ class SprintController {
     } catch (error) {
       if (error instanceof ZodError) {
         // Se o erro for de validação do Zod, retorna 400 com a mensagem personalizada
-        console.log(error );
         return reply.status(400).send({ message: 'Validation error' });
-        
       }
       reply.status(500).send({ message: error });
     }

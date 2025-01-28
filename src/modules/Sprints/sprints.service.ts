@@ -20,7 +20,7 @@ class SprintService {
     }
   }
 
-  async newSprint(toSprintsDto: ToSprintsDto) {
+  async newSprint(toSprintsDto: Required<ToSprintsDto>) {
     try {
       return await prisma.sprints.create({
         data: {

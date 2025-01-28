@@ -6,7 +6,7 @@ export const CardsSchema = z.object({
   tempo_estimado: z.number().optional(),
   tempo: z.number().optional(),
   assigned: z.string().optional(),
-  sprint: z.number(),
+  sprint: z.number().optional(),
   dod: z.string().optional(),
   dor: z.string().optional(),
   xp_frontend: z.number().optional(),
@@ -16,7 +16,7 @@ export const CardsSchema = z.object({
   xp_design: z.number().optional(),
   xp_datalytics: z.number().optional(),
   indicacao_conteudo: z.string().optional(),
-  projeto: z.number()
+  projeto: z.number().optional()
 });
 
 export type CardsDto = z.infer<typeof CardsSchema>;
