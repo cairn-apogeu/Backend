@@ -51,8 +51,15 @@ app.register(sprintRoutes);  // Rotas para sprints
 // Inicialização do servidor
 const start = async () => {
   try {
-    await app.listen({ port: 3333, host: "0.0.0.0" });
-    console.log("Server is running on http://localhost:3333");
+    const port = parseInt(process.env.PORT || '3333', 10); // Converte para número
+
+    app.listen({ port, host: "0.0.0.0" }, (err, address) => {
+      if (err) {
+        app.log.error(err);
+        process.exit(1);
+      }
+      console.log(`Server listening at ${address}`);
+    });
   } catch (error) {
     app.log.error(error);
     process.exit(1);
