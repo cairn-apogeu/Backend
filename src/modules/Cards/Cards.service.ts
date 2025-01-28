@@ -1,5 +1,6 @@
 import prisma from "../../clients/prisma.client";
 import { CardsDto } from "./schemas/create-Cards.schema";
+import { CardsUpdateDto } from "./schemas/update-Cards.schema";
 
 class CardsService {
   async findAll() {
@@ -31,20 +32,24 @@ class CardsService {
         data: createCardDto,
       });
     } catch (error) {
-      console.error("Erro no Prisma:", error);
+      console.error("Erro no Prisma:", (error as any).message, error);
       throw new Error("Falha ao criar o card");
     }
   }
   
 
-  async update(id: number, updateCardDto: Partial<CardsDto>) {
+  async update(id: number, updateCardDto: CardsUpdateDto) {
+    console.log(id);
+    
     try {
       return await prisma.cards.update({
         where: { id },
         data: updateCardDto,
       });
     } catch (error) {
+      console.log(error);
       throw new Error("Falha ao atualizar o card");
+      
     }
   }
 
@@ -58,7 +63,7 @@ class CardsService {
     }
   }
 
-  async findByAssignedUser(userId: number) {
+  async findByAssignedUser(userId: string) {
     try {
       return await prisma.cards.findMany({
         where: { assigned: userId },
@@ -74,9 +79,21 @@ class CardsService {
         where: { sprint: sprintId },
       });
     } catch (error) {
-      throw new Error("Falha ao recuperar os cards para o sprint");
+      throw new Error("Falha ao recuperar os cards para a sprint");
     }
   }
+
+  async findByProject(projectId: number) {
+    try {
+      return await prisma.cards.findMany({
+        where: { projeto: projectId },
+      });
+    } catch (error) {
+      throw new Error("Falha ao recuperar os cards para o projeto");
+    }
+  }
+
+  
 }
 
 export default new CardsService();
