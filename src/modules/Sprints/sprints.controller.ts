@@ -9,7 +9,7 @@ class SprintController {
     try {
       const sprints = await sprintService.findAll();
       reply.send(sprints);
-      console.log(sprints);
+      console.log("get:  ", sprints);
       
     } catch (error) {
       reply.status(500).send({ message: error });
@@ -53,7 +53,9 @@ class SprintController {
     } catch (error) {
       if (error instanceof ZodError) {
         // Se o erro for de validação do Zod, retorna 400 com a mensagem personalizada
+        console.log(error );
         return reply.status(400).send({ message: 'Validation error' });
+        
       }
       reply.status(500).send({ message: error });
     }
@@ -72,7 +74,7 @@ class SprintController {
   
       // Obtendo o corpo da requisição
       const toSprintsDto = ToSprintsSchema.parse(request.body);
-  
+      
       // Atualizando o sprint
       const updatedSprint = await sprintService.updateSprint(id, toSprintsDto);
       if (!updatedSprint) {
@@ -80,12 +82,14 @@ class SprintController {
         return reply.status(404).send({ message: 'Sprint not found' });
       }
       reply.send(updatedSprint);
+      
     } catch (error) {
       if (error instanceof ZodError) {
         // Se o erro for de validação do Zod, retorna 400 com a mensagem personalizada
         return reply.status(400).send({ message: 'Validation error' });
       }
       
+      console.log(error);
       reply.status(500).send({ message: error || 'Internal Server Error' });
     }
   }

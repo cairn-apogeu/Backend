@@ -9,6 +9,8 @@ export const ToProjetosSchema = z.object({
   token: z.string(),
   repositorio: z.string(),
   owner: z.string(),
+  data_inicio: z.date().optional(),
+  data_fim: z.date().optional(),
 });
 
 export type ToProjetosDto = z.infer<typeof ToProjetosSchema>;
