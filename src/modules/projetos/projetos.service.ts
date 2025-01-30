@@ -18,7 +18,11 @@ interface DirectoryStructure {
 class ProjetoService {
   async findAll() {
     try {
-      return await prisma.projetos.findMany();
+      return await prisma.projetos.findMany({
+        include: {
+          AlunosProjetos: true
+        }
+      });
     } catch (error) {
       throw new Error("Tabela 'Projetos' não encontrada");
     }

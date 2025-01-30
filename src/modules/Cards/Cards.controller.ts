@@ -54,11 +54,11 @@ class CardsController {
     }
   }
 
-  async delete(request: FastifyRequest<{ Params: { id: number } }>, reply: FastifyReply) {
+  async delete(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const { id } = request.params;
     try {
-      await cardsService.delete(id);
-      reply.status(204).send();
+      await cardsService.delete(Number(id));
+      reply.status(200).send();
     } catch (error) {
       reply.status(500).send({ message: error });
     }
