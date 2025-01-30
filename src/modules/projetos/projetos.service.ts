@@ -39,15 +39,24 @@ class ProjetoService {
   async findByUserId(id: string) {
     try {
       // Busca os projetos relacionados ao aluno pelo ID
-      const projetos = await prisma.alunosProjetos.findMany({
+      const projetosAluno = await prisma.alunosProjetos.findMany({
         where: { aluno_id: id },
         include: {
           projeto: true, // Inclui os detalhes do projeto
         },
       });
-  
+      const projetosClienteGestor = await prisma.projetos.findMany({
+        where: {
+          OR: [
+            { id_cliente: id },
+            { id_gestor: id }
+          ]
+        }
+      });
+      console.log(projetosAluno);
+      
       // Retorna apenas os projetos
-      return projetos.map((alunoProjeto) => alunoProjeto.projeto);
+      return projetosAluno[0]  ? projetosAluno.map((alunoProjeto) => alunoProjeto.projeto) : projetosClienteGestor
     } catch (error) {
       throw new Error("Projetos não encontrados para o aluno.");
     }
