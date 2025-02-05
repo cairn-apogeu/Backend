@@ -31,7 +31,7 @@ class ProjetoService {
   async findById(id: number) {
     try {
       return await prisma.projetos.findUnique({
-        where: { id: 1 },
+        where: { id },
         include: {sprints: true}
       });
     } catch (error) {
@@ -86,6 +86,7 @@ class ProjetoService {
     try {
       if (toProjetosDto.token) {
         try {
+          
           toProjetosDto.token = await encryptData(toProjetosDto.token);
         } catch (encryptError) {
           console.error("Erro ao criptografar o token:", encryptError);
@@ -134,6 +135,9 @@ class ProjetoService {
 
       const files = response.data;
       const result: DirectoryStructure = {};
+
+      console.log(files);
+      
   
       for (const file of files) {
         if (file.type === "file" && file.name.endsWith(".md")) {
