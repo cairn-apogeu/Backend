@@ -3,6 +3,7 @@ import sprintService from "./sprints.service";
 import { SprintsIdSchema } from "./schemas/sprints-id.schema";
 import { ToSprintsDto, ToSprintsSchema } from "./schemas/to-sprints.schema";
 import { ZodError } from 'zod';
+import { UpdateSprints, UpdateSprintsSchema } from "./schemas/update-sprints.schema";
 
 class SprintController {
   async findAll(request: FastifyRequest, reply: FastifyReply) {
@@ -62,7 +63,7 @@ class SprintController {
   async updateSprint(
     request: FastifyRequest<{
       Params: { id: string }; // O parâmetro é recebido como string
-      Body: Partial<ToSprintsDto>;
+      Body: Partial<UpdateSprints>;
     }>,
     reply: FastifyReply
   ) {
@@ -71,7 +72,7 @@ class SprintController {
       const id = Number(request.params.id);
   
       // Obtendo o corpo da requisição
-      const toSprintsDto = ToSprintsSchema.parse(request.body);
+      const toSprintsDto = UpdateSprintsSchema.parse(request.body);
       
       // Atualizando o sprint
       const updatedSprint = await sprintService.updateSprint(id, toSprintsDto);
