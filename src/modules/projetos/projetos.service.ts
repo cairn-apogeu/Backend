@@ -32,13 +32,13 @@ class ProjetoService {
     try {
       return await prisma.projetos.findUnique({
         where: { id },
-        include: {sprints: true}
+        include: { sprints: true }
       });
     } catch (error) {
-        console.log("Erro no service", error);
-        throw new Error("Projeto não encontrado");
+      console.log("Erro no service", error);
+      throw new Error("Projeto não encontrado");
     }
-}
+  }
 
   async findByUserId(id: string) {
     try {
@@ -58,9 +58,9 @@ class ProjetoService {
         }
       });
       console.log(projetosAluno);
-      
+
       // Retorna apenas os projetos
-      return projetosAluno[0]  ? projetosAluno.map((alunoProjeto) => alunoProjeto.projeto) : projetosClienteGestor
+      return projetosAluno[0] ? projetosAluno.map((alunoProjeto) => alunoProjeto.projeto) : projetosClienteGestor
     } catch (error) {
       throw new Error("Projetos não encontrados para o aluno.");
     }
@@ -86,7 +86,7 @@ class ProjetoService {
     try {
       if (toProjetosDto.token) {
         try {
-          
+
           toProjetosDto.token = await encryptData(toProjetosDto.token);
         } catch (encryptError) {
           console.error("Erro ao criptografar o token:", encryptError);
@@ -102,7 +102,7 @@ class ProjetoService {
       throw new Error("Falha ao atualizar projeto");
     }
   }
-   
+
 
   async deleteProjeto(id: number) {
     try {
@@ -114,14 +114,14 @@ class ProjetoService {
     }
   }
 
-// função que vai ser usada no getGithubContent
+  // função que vai ser usada no getGithubContent
   async fetchFilesRecursively(
     owner: string,
     repo: string,
     path: string,
     branch: string,
     token: string
-  ): Promise<DirectoryStructure> {
+  ): Promise<DirectoryStructure> { // Removemos a possibilidade de retornar null
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
   
     try {
@@ -132,12 +132,21 @@ class ProjetoService {
         },
         params: { ref: branch },
       });
-
+  
       const files = response.data;
+  
+      // Verifica se há uma pasta "docs" antes de continuar
+      if (path === "" || path === "/") {
+        const docsFolder = files.find(file => file.type === "dir" && file.name === "docs");
+        if (!docsFolder) {
+          console.log("Pasta 'docs' não encontrada.");
+          return {}; // Retorna um objeto vazio ao invés de null
+        }
+        // Chama novamente a função apenas para a pasta "docs"
+        return await this.fetchFilesRecursively(owner, repo, docsFolder.path, branch, token);
+      }
+  
       const result: DirectoryStructure = {};
-
-      console.log(files);
-      
   
       for (const file of files) {
         if (file.type === "file" && file.name.endsWith(".md")) {
@@ -150,12 +159,13 @@ class ProjetoService {
         }
       }
   
-      return result;
+      return result; // Retornamos sempre um objeto válido
     } catch (error) {
       console.error(`Error fetching files from ${path}:`, error);
       throw error;
     }
   }
+  
 
   async getGithubContent(id: number, filePath: string, branch: string) {
     try {
@@ -168,11 +178,12 @@ class ProjetoService {
       else if (!projeto.owner || !projeto.repositorio) {
         throw new Error("Owner do projeto ou repositório não encontrados.");
       }
-      
+
 
       const token = decryptData(projeto.token);
 
-      const response = await this.fetchFilesRecursively(projeto.owner, projeto.repositorio, filePath, branch, token)
+      const response = (await this.fetchFilesRecursively(projeto.owner, projeto.repositorio, "", branch, token)) || {};
+
 
 
       return response;
