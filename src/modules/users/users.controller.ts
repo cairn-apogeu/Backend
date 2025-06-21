@@ -21,9 +21,13 @@ class UserController {
     const { id } = UserIdSchema.parse(request.params);
     try {
       const user = await userService.findById(id);
+      if (!user) {
+        reply.status(404).send({ message: "Usuário não cadastrado" });
+        return;
+      }
       reply.send(user);
     } catch (error) {
-      reply.status(404).send({ message: error });
+      reply.status(404).send({ message: "Usuário não cadastrado" });
     }
   }
 

@@ -8,6 +8,8 @@ import projetoRoutes from "./modules/projetos/projetos.routes";
 import cardsRoutes from "./modules/Cards/Cards.routes";
 import usersRoutes from "./modules/users/users.routes";
 import sprintRoutes from "./modules/Sprints/sprints.routes";
+import statisticsRoutes from "./modules/statistics/statistics.routes";
+import alunoProjetosRoutes from './modules/alunoProjetos/alunoProjetos.routes';
 
 const app = Fastify({ logger: true });
 app.register(clerkPlugin);
@@ -31,8 +33,8 @@ app.addHook("preHandler", async (request, reply) => {
     if (!userId) {
       return reply.code(401).send({ error: 'User not authenticated' })
     }
-
-    console.log(userId);
+    // Adiciona userId ao request para uso nos controllers
+    (request as any).userId = userId;
     
 
 
@@ -47,6 +49,8 @@ app.register(projetoRoutes); // Rotas para projetos
 app.register(cardsRoutes);   // Rotas para cards
 app.register(usersRoutes);   // Rotas para usuários
 app.register(sprintRoutes);  // Rotas para sprints
+app.register(statisticsRoutes); // Rotas para estatísticas
+app.register(alunoProjetosRoutes); // Rotas para projetos de alunos
 
 // Inicialização do servidor
 const start = async () => {

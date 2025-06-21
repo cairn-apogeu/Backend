@@ -22,20 +22,17 @@ class SprintController {
     reply: FastifyReply
   ) {
     try {
-      // Converta o id para número antes da validação
       const id = Number(request.params.id);
-  
-      // Validação com Zod após a conversão
       const validId = SprintsIdSchema.parse({ id });
-  
-      // Chamada do serviço com o ID validado
-      const sprint = await sprintService.findById(validId.id);
-  
+      // Recupera o userId do request (adicionado pelo preHandler)
+      const userId = (request as any).userId;
+      if (!userId) {
+        return reply.status(401).send({ message: 'User not authenticated' });
+      }
+      const sprint = await sprintService.findById(validId.id, userId);
       if (!sprint) {
-        // Caso o serviço não retorne um sprint válido
         return reply.status(404).send({ message: 'Not found' });
       }
-  
       reply.send(sprint);
     } catch (error) {
       reply.status(400).send({ message: error || 'Validation error' });
@@ -101,6 +98,26 @@ class SprintController {
     try {
       const sprint = await sprintService.deleteSprint(id);
       reply.send(sprint);
+    } catch (error) {
+      reply.status(500).send({ message: error });
+    }
+  }
+
+  async findAllByProjetoId(
+    request: FastifyRequest<{ Params: { id_projeto: string } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const id_projeto = Number(request.params.id_projeto);
+      if (isNaN(id_projeto)) {
+        return reply.status(400).send({ message: "id_projeto inválido" });
+      }
+      const userId = (request as any).userId;
+      if (!userId) {
+        return reply.status(401).send({ message: 'User not authenticated' });
+      }
+      const sprints = await sprintService.findAllByProjetoId(id_projeto, userId);
+      reply.send(sprints);
     } catch (error) {
       reply.status(500).send({ message: error });
     }

@@ -4,6 +4,7 @@ import sprintController from "./sprints.controller";
 export default async function sprintRoutes(app: FastifyInstance) {
   app.get("/sprints", sprintController.findAll);
   app.get("/sprints/:id", sprintController.findById);
+  app.get("/sprints/projeto/:id_projeto", sprintController.findAllByProjetoId);
   app.post("/sprints", sprintController.newSprint);
   app.put("/sprints/:id", sprintController.updateSprint);
   app.delete("/sprints/:id", sprintController.deleteSprint);
