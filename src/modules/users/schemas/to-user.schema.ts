@@ -11,6 +11,7 @@ export const ToUserSchema = z.object({
   objetivo_longo: z.string().nullable().optional(),
   genero: z.string().max(10).nullable().optional(),
   nascimento: z.string().nullable().optional(),
+  biografia: z.string().max(255).nullable().optional(),
 });
 
 export type ToUserDto = z.infer<typeof ToUserSchema>;

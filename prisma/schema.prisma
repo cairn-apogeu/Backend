@@ -7,6 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Difficulty {
+  MUITO_FACIL
+  FACIL
+  MEDIO
+  DIFICIL
+  MUITO_DIFICIL
+}
+
+enum Status {
+  Backlog
+  ToDo
+  Doing
+  Done
+  Prevented
+  CanMine
+}
+
 model Users {
   user_clerk_id  String    @id
   tipo_perfil    String    @db.VarChar(10)
@@ -18,18 +35,24 @@ model Users {
   objetivo_longo String?
   genero         String?   @db.VarChar(10)
   nascimento     DateTime?
+  biografia      String?   @db.VarChar(255)
 
   projetosCliente Projetos[] @relation("ProjetosCliente")
-  projetosGestor  Projetos[] @relation("ProjetosGestor")
+  projetosMentor  Projetos[] @relation("ProjetosMentor")
+  projetosHelper  Projetos[] @relation("ProjetosHelper")
   cards           Cards[]    @relation("CardAssigned")
 
   AlunosProjetos AlunosProjetos[]
+
+  userStatistics UserStatistics?
+  last_card      Int?
 }
 
 model Projetos {
   id          Int      @id @default(autoincrement())
-  id_cliente  String
-  id_gestor   String
+  id_cliente  String?
+  id_mentor   String?
+  id_helper   String?
   nome        String   @db.VarChar(100)
   valor       Int
   status      String   @db.VarChar(50)
@@ -38,15 +61,18 @@ model Projetos {
   owner       String?  @db.VarChar(100)
   dia_inicio  DateTime @default(now())
   dia_fim     DateTime @default(now())
+  logo_url    String?  @db.VarChar(255)
 
-  cliente        Users            @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
-  gestor         Users            @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
+  cliente        Users?           @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
+  mentor         Users?           @relation("ProjetosMentor", fields: [id_mentor], references: [user_clerk_id])
+  helper         Users?           @relation("ProjetosHelper", fields: [id_helper], references: [user_clerk_id])
   sprints        Sprints[]
   AlunosProjetos AlunosProjetos[]
   cards          Cards[]
 
   @@index([id_cliente], map: "fk_projetos_id_cliente")
-  @@index([id_gestor], map: "fk_projetos_id_gestor")
+  @@index([id_mentor], map: "fk_projetos_id_mentor")
+  @@index([id_helper], map: "fk_projetos_id_helper")
 }
 
 model Sprints {
@@ -54,6 +80,7 @@ model Sprints {
   id_projeto Int
   numero     Int
   objetivo   String?
+  computed   Boolean  @default(false)
   dia_inicio DateTime @default(now())
   dia_fim    DateTime @default(now())
 
@@ -79,7 +106,7 @@ model Cards {
   id                 Int       @id @default(autoincrement())
   titulo             String    @db.VarChar(100)
   descricao          String?
-  status             String    @db.VarChar(20)
+  status             Status    @default(Backlog)
   tempo_estimado     Int?
   tempo              Int?
   assigned           String?
@@ -88,14 +115,17 @@ model Cards {
   projeto            Int?
   dod                String?
   dor                String?
-  xp_frontend        Int?
-  xp_backend         Int?
-  xp_negocios        Int?
-  xp_arquitetura     Int?
-  xp_design          Int?
-  xp_datalytics      Int?
+  xp_frontend        Boolean?  @default(false)
+  xp_backend         Boolean?  @default(false)
+  xp_negocios        Boolean?  @default(false)
+  xp_arquitetura     Boolean?  @default(false)
+  xp_design          Boolean?  @default(false)
+  xp_data_analysis   Boolean?  @default(false)
   indicacao_conteudo String?
   data_criacao       DateTime? @default(now())
+  computed           Boolean   @default(false)
+  difficulty         Difficulty?
+  order              Int?
 
   assignedTo      Users?    @relation("CardAssigned", fields: [assigned], references: [user_clerk_id])
   sprintRelation  Sprints?  @relation(fields: [sprint], references: [id])
@@ -104,4 +134,22 @@ model Cards {
   @@index([assigned], map: "fk_cards_assigned")
   @@index([sprint], map: "fk_cards_sprint")
   @@index([projeto], map: "fk_cards_projeto")
+}
+
+model UserStatistics {
+  id                Int     @id @default(autoincrement())
+  user_clerk_id     String  @unique
+  xp_frontend       Int     @default(0)
+  xp_backend        Int     @default(0)
+  xp_negocios       Int     @default(0)
+  xp_arquitetura    Int     @default(0)
+  xp_design         Int     @default(0)
+  xp_data_analysis  Int     @default(0)
+  total_throughput  Int     @default(0)
+  deltatime_predict Float   @default(0)
+  average_daily     Float   @default(0)
+
+  user Users @relation(fields: [user_clerk_id], references: [user_clerk_id])
+
+  @@index([user_clerk_id])
 }
