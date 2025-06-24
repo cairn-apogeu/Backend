@@ -66,7 +66,7 @@ class ProjetoService {
       console.log("Erro no service", error);
       throw new Error("Projeto não encontrado ou acesso negado");
     }
-}
+  }
 
   async findByUserId(id: string) {
     try {
@@ -169,7 +169,7 @@ class ProjetoService {
       throw new Error("Falha ao atualizar projeto");
     }
   }
-   
+
 
   async deleteProjeto(id: number) {
     try {
@@ -181,14 +181,14 @@ class ProjetoService {
     }
   }
 
-// função que vai ser usada no getGithubContent
+  // função que vai ser usada no getGithubContent
   async fetchFilesRecursively(
     owner: string,
     repo: string,
     path: string,
     branch: string,
     token: string
-  ): Promise<DirectoryStructure> {
+  ): Promise<DirectoryStructure> { // Removemos a possibilidade de retornar null
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
   
     try {
@@ -199,12 +199,21 @@ class ProjetoService {
         },
         params: { ref: branch },
       });
-
+  
       const files = response.data;
+  
+      // Verifica se há uma pasta "docs" antes de continuar
+      if (path === "" || path === "/") {
+        const docsFolder = files.find(file => file.type === "dir" && file.name === "docs");
+        if (!docsFolder) {
+          console.log("Pasta 'docs' não encontrada.");
+          return {}; // Retorna um objeto vazio ao invés de null
+        }
+        // Chama novamente a função apenas para a pasta "docs"
+        return await this.fetchFilesRecursively(owner, repo, docsFolder.path, branch, token);
+      }
+  
       const result: DirectoryStructure = {};
-
-      console.log(files);
-      
   
       for (const file of files) {
         if (file.type === "file" && file.name.endsWith(".md")) {
@@ -217,12 +226,13 @@ class ProjetoService {
         }
       }
   
-      return result;
+      return result; // Retornamos sempre um objeto válido
     } catch (error) {
       console.error(`Error fetching files from ${path}:`, error);
       throw error;
     }
   }
+  
 
   async getGithubContent(id: number, filePath: string, branch: string) {
     try {
@@ -235,11 +245,12 @@ class ProjetoService {
       else if (!projeto.owner || !projeto.repositorio) {
         throw new Error("Owner do projeto ou repositório não encontrados.");
       }
-      
+
 
       const token = decryptData(projeto.token);
 
-      const response = await this.fetchFilesRecursively(projeto.owner, projeto.repositorio, filePath, branch, token)
+      const response = (await this.fetchFilesRecursively(projeto.owner, projeto.repositorio, "", branch, token)) || {};
+
 
 
       return response;
