@@ -18,14 +18,24 @@ class ProjetoController {
     reply: FastifyReply
   ) {
     const { id } = ProjetosParamsIdSchema.parse(request.params);
+    // Clerk: userId geralmente está em request.auth.userId
+    // Fallback: request.user?.id
+    // Se não houver auth, retorna 401
+    // @ts-ignore
+    const userId = request.auth?.userId || request.user?.id;
+    if (!userId) {
+      reply.status(401).send({ Message: "Não autenticado. userId não encontrado no token Clerk." });
+      return;
+    }
     try {
-      const projeto = await projetoService.findById(Number(id));
+      const projeto = await projetoService.findByIdWithAccessCheck(Number(id), userId);
       reply.send(projeto);
-      console.log(projeto?.sprints);
-      
     } catch (error) {
-      console.log("Erro no controller", error);
-      reply.status(404).send({ Message: error });
+      if (error instanceof Error && error.message.includes("Acesso negado")) {
+        reply.status(403).send({ Message: error.message });
+      } else {
+        reply.status(404).send({ Message: error });
+      }
     }
   }
 

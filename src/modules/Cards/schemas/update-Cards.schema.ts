@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DifficultyEnum } from './create-Cards.schema';
 
 export const CardsUpdateSchema = z.object({
   titulo: z.string().max(100).optional(),
@@ -10,13 +11,16 @@ export const CardsUpdateSchema = z.object({
   sprint: z.number().optional(),
   dod: z.string().optional(),
   dor: z.string().optional(),
-  xp_frontend: z.number().optional(),
-  xp_backend: z.number().optional(),
-  xp_negocios: z.number().optional(),
-  xp_arquitetura: z.number().optional(),
-  xp_design: z.number().optional(),
-  xp_datalytics: z.number().optional(),
+  xp_frontend: z.boolean().optional(),
+  xp_backend: z.boolean().optional(),
+  xp_negocios: z.boolean().optional(),
+  xp_arquitetura: z.boolean().optional(),
+  xp_design: z.boolean().optional(),
+  xp_datalytics: z.boolean().optional(),
   indicacao_conteudo: z.string().optional(),
+  computed: z.boolean().optional(),
+  difficulty: DifficultyEnum.optional(),
+  order: z.number().optional(),
 });
 
 export type CardsUpdateDto = z.infer<typeof CardsUpdateSchema>;

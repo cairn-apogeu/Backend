@@ -10,6 +10,8 @@ async function cardsRoutes(fastify: FastifyInstance) {
   fastify.get('/cards/assigned/:userId', CardsController.findByAssignedUser);
   fastify.get('/cards/sprint/:sprintId', CardsController.findBySprint);
   fastify.get('/cards/project/:projectId', CardsController.findByProject);
+  fastify.post('/cards/compute-xp/:projectId', CardsController.computeXpByProject);
+  fastify.post('/cards/compute-xp-sprint/:sprintId', CardsController.computeXpBySprint);
 }
 
 export default cardsRoutes;
