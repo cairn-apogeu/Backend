@@ -7,7 +7,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "jest",
-    "dev": "npx tsx watch src/index.ts"
+    "dev": "npx tsx watch src/index.ts",
+    "seed": "tsx prisma/seed.ts",
+    "unseed": "tsx prisma/unseed.ts"
   },
   "author": "",
   "license": "ISC",
