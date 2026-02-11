@@ -57,6 +57,12 @@ class CardsService {
 
   async create(createCardDto: CardsDto) {
     try {
+      const projectIdForValidation = await this.resolveProjectIdFromContext(
+        createCardDto.projeto,
+        createCardDto.sprint
+      );
+      await this.ensureProjectAllowsModification(projectIdForValidation);
+
       console.log("Dados enviados ao Prisma:", createCardDto);
       // Descobre o maior valor de order no contexto (sprint ou projeto)
       let contextFilter: any = {};
@@ -88,6 +94,32 @@ class CardsService {
 
   async update(id: number, updateCardDto: CardsUpdateDto) {
     try {
+      const existingCard = await prisma.cards.findUnique({ where: { id } });
+      if (!existingCard) {
+        throw new Error("Card não encontrado");
+      }
+
+      const currentProjectId = await this.resolveProjectIdFromContext(
+        existingCard.projeto,
+        existingCard.sprint
+      );
+      await this.ensureProjectAllowsModification(currentProjectId);
+
+      const desiredProjectId =
+        updateCardDto.projeto !== undefined
+          ? updateCardDto.projeto
+          : existingCard.projeto;
+      const desiredSprintId =
+        updateCardDto.sprint !== undefined
+          ? updateCardDto.sprint
+          : existingCard.sprint;
+
+      const targetProjectId = await this.resolveProjectIdFromContext(
+        desiredProjectId,
+        desiredSprintId
+      );
+      await this.ensureProjectAllowsModification(targetProjectId);
+
       const updatedCard = await prisma.cards.update({
         where: { id },
         data: updateCardDto,
@@ -114,6 +146,17 @@ class CardsService {
 
   async delete(id: number) {
     try {
+      const card = await prisma.cards.findUnique({ where: { id } });
+      if (!card) {
+        throw new Error("Card não encontrado");
+      }
+
+      const projectId = await this.resolveProjectIdFromContext(
+        card.projeto,
+        card.sprint
+      );
+      await this.ensureProjectAllowsModification(projectId);
+
       return await prisma.cards.delete({
         where: { id },
       });
@@ -353,6 +396,47 @@ class CardsService {
       where: { id: sprintId },
       data: { computed: true }
     });
+  }
+
+  private async resolveProjectIdFromContext(
+    projectId?: number | null,
+    sprintId?: number | null
+  ): Promise<number | null> {
+    if (typeof projectId === "number") {
+      return projectId;
+    }
+
+    if (typeof sprintId === "number") {
+      const sprint = await prisma.sprints.findUnique({
+        where: { id: sprintId },
+        select: { id_projeto: true },
+      });
+      if (!sprint) {
+        throw new Error("Sprint não encontrada para validação de projeto.");
+      }
+      return sprint.id_projeto;
+    }
+
+    return null;
+  }
+
+  private async ensureProjectAllowsModification(projectId?: number | null) {
+    if (projectId == null) {
+      return;
+    }
+
+    const project = await prisma.projetos.findUnique({
+      where: { id: projectId },
+      select: { status: true },
+    });
+
+    if (!project) {
+      throw new Error("Projeto não encontrado para validação dos cards.");
+    }
+
+    if (project.status?.toLowerCase() === "finalizado".toLowerCase()) {
+      throw new Error("Não é possível alterar cards de um projeto finalizado.");
+    }
   }
 }
 
