@@ -27,14 +27,15 @@ class SprintService {
       // Se não for admin, precisa estar relacionado ao projeto da sprint
       const projeto = await prisma.projetos.findUnique({
         where: { id: sprint.id_projeto },
-        include: { AlunosProjetos: true }
+        include: { DevsProjetos: true }
       });
       if (!projeto) throw new Error("Projeto da sprint não encontrado");
       if (
         projeto.id_cliente === userId ||
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
-        projeto.AlunosProjetos.some((ap) => ap.aluno_id === userId)
+        projeto.id_rh === userId ||
+        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
       ) {
         return sprint;
       }
@@ -84,7 +85,7 @@ class SprintService {
   async findAllByProjetoId(id_projeto: number, userId: string) {
     try {
       // Busca o projeto para checar acesso
-      const projeto = await prisma.projetos.findUnique({ where: { id: id_projeto }, include: { AlunosProjetos: true } });
+      const projeto = await prisma.projetos.findUnique({ where: { id: id_projeto }, include: { DevsProjetos: true } });
       if (!projeto) throw new Error("Projeto não encontrado");
       // Busca o usuário
       const user = await prisma.users.findUnique({ where: { user_clerk_id: userId }, select: { tipo_perfil: true } });
@@ -96,7 +97,8 @@ class SprintService {
         projeto.id_cliente === userId ||
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
-        projeto.AlunosProjetos.some((ap) => ap.aluno_id === userId)
+        projeto.id_rh === userId ||
+        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
       ) {
         return await prisma.sprints.findMany({ where: { id_projeto } });
       }

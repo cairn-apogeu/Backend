@@ -10,7 +10,12 @@ import cardsRoutes from "./modules/Cards/Cards.routes";
 import usersRoutes from "./modules/users/users.routes";
 import sprintRoutes from "./modules/Sprints/sprints.routes";
 import statisticsRoutes from "./modules/statistics/statistics.routes";
-import alunoProjetosRoutes from "./modules/alunoProjetos/alunoProjetos.routes";
+import devProjetosRoutes from "./modules/devProjetos/devProjetos.routes";
+import capacidadeCognitivaAplicadaRoutes from "./modules/capacidadeCognitivaAplicada/capacidadeCognitivaAplicada.routes";
+import comunicacaoOperacionalRoutes from "./modules/comunicacaoOperacional/comunicacaoOperacional.routes";
+import execucaoConfiavelRoutes from "./modules/execucaoConfiavel/execucaoConfiavel.routes";
+import contribuicaoSistemicaRoutes from "./modules/contribuicaoSistemica/contribuicaoSistemica.routes";
+import dailyRoutes from "./modules/daily/daily.routes";
 
 const PORT = parseInt(process.env.PORT || "3333", 10);
 const SWAGGER_SERVER_URL =
@@ -27,8 +32,6 @@ app.register(cors, {
 
 // Documentação Swagger / OpenAPI
 app.register(swagger, {
-  exposeRoute: true,
-  routePrefix: "/documentation",
   openapi: {
     info: {
       title: "Apogeu Backend",
@@ -203,7 +206,12 @@ app.register(cardsRoutes); // Rotas para cards
 app.register(usersRoutes); // Rotas para usuários
 app.register(sprintRoutes); // Rotas para sprints
 app.register(statisticsRoutes); // Rotas para estatísticas
-app.register(alunoProjetosRoutes); // Rotas para projetos de alunos
+app.register(devProjetosRoutes); // Rotas para projetos de devs
+app.register(capacidadeCognitivaAplicadaRoutes); // Rotas para capacidade cognitiva aplicada
+app.register(comunicacaoOperacionalRoutes); // Rotas para comunicação operacional
+app.register(execucaoConfiavelRoutes); // Rotas para execução confiável
+app.register(contribuicaoSistemicaRoutes); // Rotas para contribuição sistêmica
+app.register(dailyRoutes); // Rotas para daily
 
 // Inicialização do servidor
 const start = async () => {

@@ -1,3 +1,4 @@
+import { Prisma, Status } from "@prisma/client";
 import prisma from "../../clients/prisma.client";
 import { CardsDto } from "./schemas/create-Cards.schema";
 import { CardsUpdateDto } from "./schemas/update-Cards.schema";
@@ -35,7 +36,7 @@ class CardsService {
 
       const projeto = await prisma.projetos.findUnique({
         where: { id: card.projeto },
-        include: { AlunosProjetos: true }
+        include: { DevsProjetos: true }
       });
 
       if (!projeto) throw new Error("Projeto do card não encontrado");
@@ -44,7 +45,8 @@ class CardsService {
         projeto.id_cliente === userId ||
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
-        projeto.AlunosProjetos.some((ap) => ap.aluno_id === userId)
+        projeto.id_rh === userId ||
+        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
       ) {
         return card;
       }
@@ -79,11 +81,14 @@ class CardsService {
         });
       }
       const newOrder = lastCard && lastCard.order != null ? lastCard.order + 1 : 1;
+      const { status, ...restCardData } = createCardDto;
+      const cardData: Prisma.CardsUncheckedCreateInput = {
+        ...restCardData,
+        status: status as Status,
+        order: newOrder,
+      };
       return await prisma.cards.create({
-        data: {
-          ...createCardDto,
-          order: newOrder,
-        },
+        data: cardData,
       });
     } catch (error) {
       console.error("Erro no Prisma:", (error as any).message, error);
@@ -120,14 +125,21 @@ class CardsService {
       );
       await this.ensureProjectAllowsModification(targetProjectId);
 
+      const { status: statusUpdate, ...restUpdateData } = updateCardDto;
+      const normalizedStatus = statusUpdate as Status | undefined;
+      const updateData: Prisma.CardsUncheckedUpdateInput = {
+        ...restUpdateData,
+        ...(normalizedStatus ? { status: normalizedStatus } : {}),
+      };
+
       const updatedCard = await prisma.cards.update({
         where: { id },
-        data: updateCardDto,
+        data: updateData,
       });
 
       // Se o status foi atualizado para 'Doing', atualize o last_card do usuário
       if (
-        updateCardDto.status === 'Doing' &&
+        normalizedStatus === Status.Doing &&
         updatedCard.assigned // só atualiza se houver assigned
       ) {
         await prisma.users.update({
@@ -187,13 +199,14 @@ class CardsService {
         return await prisma.cards.findMany({ where: { sprint: sprintId } });
       }
       // Busca o projeto da sprint
-      const projeto = await prisma.projetos.findUnique({ where: { id: sprint.id_projeto }, include: { AlunosProjetos: true } });
+      const projeto = await prisma.projetos.findUnique({ where: { id: sprint.id_projeto }, include: { DevsProjetos: true } });
       if (!projeto) throw new Error("Projeto da sprint não encontrado");
       if (
         projeto.id_cliente === userId ||
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
-        projeto.AlunosProjetos.some((ap) => ap.aluno_id === userId)
+        projeto.id_rh === userId ||
+        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
       ) {
         return await prisma.cards.findMany({ where: { sprint: sprintId } });
       }
@@ -206,7 +219,7 @@ class CardsService {
   async findByProject(projectId: number, userId: string) {
     try {
       // Busca o projeto para checar acesso
-      const projeto = await prisma.projetos.findUnique({ where: { id: projectId }, include: { AlunosProjetos: true } });
+      const projeto = await prisma.projetos.findUnique({ where: { id: projectId }, include: { DevsProjetos: true } });
       if (!projeto) throw new Error("Projeto não encontrado");
       // Busca o usuário
       const user = await prisma.users.findUnique({ where: { user_clerk_id: userId }, select: { tipo_perfil: true } });
@@ -218,7 +231,8 @@ class CardsService {
         projeto.id_cliente === userId ||
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
-        projeto.AlunosProjetos.some((ap) => ap.aluno_id === userId)
+        projeto.id_rh === userId ||
+        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
       ) {
         return await prisma.cards.findMany({ where: { projeto: projectId } });
       }
@@ -256,7 +270,7 @@ class CardsService {
         'xp_negocios',
         'xp_arquitetura',
         'xp_design',
-        'xp_datalytics',
+        'xp_data_analysis',
       ];
 
       const xpUpdate: Record<string, any> = {};
@@ -340,7 +354,6 @@ class CardsService {
         'xp_negocios',
         'xp_arquitetura',
         'xp_design',
-        'xp_datalytics',
         'xp_data_analysis',
       ];
 

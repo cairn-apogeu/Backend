@@ -20,7 +20,7 @@ class ProjetoService {
     try {
       return await prisma.projetos.findMany({
         include: {
-          AlunosProjetos: true
+          DevsProjetos: true
         }
       });
     } catch (error) {
@@ -34,7 +34,7 @@ class ProjetoService {
         where: { id },
         include: {
           sprints: true,
-          AlunosProjetos: true 
+          DevsProjetos: true 
         }
       });
       if (!projeto) {
@@ -57,7 +57,8 @@ class ProjetoService {
         projeto.id_cliente === userId ||
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
-        projeto.AlunosProjetos.some((ap) => ap.aluno_id === userId)
+        projeto.id_rh === userId ||
+        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
       ) {
         return projeto;
       }
@@ -70,9 +71,9 @@ class ProjetoService {
 
   async findByUserId(id: string) {
     try {
-      // Busca os projetos relacionados ao aluno pelo ID
-      const projetosAluno = await prisma.alunosProjetos.findMany({
-        where: { aluno_id: id },
+      // Busca os projetos relacionados ao dev pelo ID
+      const projetosDev = await prisma.devsProjetos.findMany({
+        where: { dev_id: id },
         include: {
           projeto: true, // Inclui os detalhes do projeto
         },
@@ -81,16 +82,17 @@ class ProjetoService {
         where: {
           OR: [
             { id_cliente: id },
-            { id_mentor: id }
+            { id_mentor: id },
+            { id_rh: id }
           ]
         }
       });
 
-      // Extrai os projetos do array de alunosProjetos
-      const projetosAlunoList = projetosAluno.map((alunoProjeto) => alunoProjeto.projeto);
+      // Extrai os projetos do array de devsProjetos
+      const projetosDevList = projetosDev.map((devProjeto) => devProjeto.projeto);
 
       // Junta todos os projetos e remove duplicatas por id
-      const todosProjetos = [...projetosAlunoList, ...projetosClienteGestor];
+      const todosProjetos = [...projetosDevList, ...projetosClienteGestor];
       const projetosUnicos = Object.values(
         todosProjetos.reduce((acc, projeto) => {
           acc[projeto.id] = projeto;
@@ -135,6 +137,7 @@ class ProjetoService {
           dia_inicio: toProjetosDto.dia_inicio,
           dia_fim: toProjetosDto.dia_fim,
           logo_url: toProjetosDto.logo_url,
+          id_rh: toProjetosDto.id_rh,
         },
       });
     } catch (error) {
@@ -261,22 +264,23 @@ class ProjetoService {
   }
 
   async userHasAccessToProjeto(projetoId: number, userId: string): Promise<boolean> {
-    // Busca o projeto e alunos relacionados
+    // Busca o projeto e devs relacionados
     const projeto = await prisma.projetos.findUnique({
       where: { id: projetoId },
-      include: { AlunosProjetos: true },
+      include: { DevsProjetos: true },
     });
     if (!projeto) return false;
     // Verifica se o usuário é cliente, mentor ou helper
     if (
       projeto.id_cliente === userId ||
       projeto.id_mentor === userId ||
-      projeto.id_helper === userId
+      projeto.id_helper === userId ||
+      projeto.id_rh === userId
     ) {
       return true;
     }
-    // Verifica se o usuário está listado como aluno
-    if (projeto.AlunosProjetos.some((ap) => ap.aluno_id === userId)) {
+    // Verifica se o usuário está listado como dev
+    if (projeto.DevsProjetos.some((ap) => ap.dev_id === userId)) {
       return true;
     }
     return false;

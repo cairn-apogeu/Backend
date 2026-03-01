@@ -16,6 +16,7 @@ export const CardsSchema = z.object({
   tempo: z.number().optional(),
   assigned: z.string().optional(),
   sprint: z.number().optional(),
+  projeto: z.number().optional(),
   dod: z.string().optional(),
   dor: z.string().optional(),
   xp_frontend: z.boolean().optional(),
@@ -23,14 +24,11 @@ export const CardsSchema = z.object({
   xp_negocios: z.boolean().optional(),
   xp_arquitetura: z.boolean().optional(),
   xp_design: z.boolean().optional(),
-  xp_datalytics: z.boolean().optional(),
+  xp_data_analysis: z.boolean().optional(),
   indicacao_conteudo: z.string().optional(),
-  projeto: z.number().optional(),
   computed: z.boolean().optional(),
   difficulty: DifficultyEnum.optional(),
   order: z.number().optional(),
 });
 
 export type CardsDto = z.infer<typeof CardsSchema>;
-
-

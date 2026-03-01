@@ -9,7 +9,7 @@ const STUDENTS_PER_PROJECT = 6;
 const DEFAULT_PASSWORD = "ApogeuSeed!123";
 const SEED_LABEL = "Seed";
 
-type SeedRole = "Mentor" | "Cliente" | "Aluno";
+type SeedRole = "Mentor" | "Cliente" | "Dev";
 
 type SeededUser = {
   id: string;
@@ -64,7 +64,7 @@ async function ensureClerkUser(role: SeedRole, index: number): Promise<SeededUse
   const username = `${SEED_LABEL.toLowerCase()}_${role.toLowerCase()}_${index + 1}`
     .replace(/[^a-z0-9_]/g, "")
     .slice(0, 32);
-  const metadataRole = role === "Aluno" ? "Dev" : role;
+  const metadataRole = role === "Dev" ? "Dev" : role;
 
   const existing = await clerk.users.getUserList({
     emailAddress: [email],
@@ -127,7 +127,7 @@ async function resetSeedData() {
   await prisma.userStatistics.deleteMany();
   await prisma.cards.deleteMany();
   await prisma.sprints.deleteMany();
-  await prisma.alunosProjetos.deleteMany();
+  await prisma.devsProjetos.deleteMany();
   await prisma.projetos.deleteMany();
 }
 
@@ -270,13 +270,14 @@ async function createProject(params: {
       dia_inicio: new Date("2024-01-01"),
       dia_fim: params.status === "Finalizado" ? new Date("2024-06-30") : new Date("2024-12-31"),
       logo_url: "https://cdn.apogeu.dev/logo.png",
+      id_rh: null,
     },
   });
 
-  await prisma.alunosProjetos.createMany({
+  await prisma.devsProjetos.createMany({
     data: params.studentIds.map((studentId) => ({
       projeto_id: project.id,
-      aluno_id: studentId,
+      dev_id: studentId,
     })),
   });
 
@@ -315,7 +316,7 @@ async function main() {
   const mentors = await provisionRoleUsers("Mentor", COMPLETED_PROJECTS + 1);
   const clients = await provisionRoleUsers("Cliente", COMPLETED_PROJECTS + 1);
   const students = await provisionRoleUsers(
-    "Aluno",
+    "Dev",
     (COMPLETED_PROJECTS + 1) * STUDENTS_PER_PROJECT
   );
 

@@ -3,6 +3,7 @@ import { createClerkClient } from "@clerk/clerk-sdk-node";
 import prisma from "../src/clients/prisma.client";
 
 const SEED_LABEL = "Seed";
+const NORMALIZED_SEED = SEED_LABEL.toLowerCase();
 
 const clerkSecret = process.env.CLERK_SECRET_KEY;
 if (!clerkSecret) {
@@ -10,6 +11,53 @@ if (!clerkSecret) {
 }
 
 const clerk = createClerkClient({ secretKey: clerkSecret });
+type ClerkUser = Awaited<ReturnType<typeof clerk.users.getUserList>>[number];
+
+function isSeedClerkUser(user: ClerkUser): boolean {
+  const usernameMatch = user.username?.toLowerCase().startsWith(`${NORMALIZED_SEED}_`);
+  const emailMatch = (user.emailAddresses || []).some((address) =>
+    address.emailAddress?.toLowerCase().startsWith(`${NORMALIZED_SEED}-`)
+  );
+  const hasSeedLabel =
+    typeof user.publicMetadata?.tipo_perfil === "string" &&
+    ["mentor", "cliente", "dev", "rh"].includes(
+      (user.publicMetadata.tipo_perfil as string).toLowerCase()
+    );
+
+  return Boolean(usernameMatch || emailMatch || hasSeedLabel);
+}
+
+function extractUsers(payload: unknown): ClerkUser[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  const withData = payload as { data?: ClerkUser[] } | undefined;
+  if (withData?.data && Array.isArray(withData.data)) {
+    return withData.data;
+  }
+  return [];
+}
+
+async function findSeedClerkUserIds(): Promise<string[]> {
+  const ids = new Set<string>();
+  const limit = 100;
+  let offset = 0;
+
+  while (true) {
+    const result = await clerk.users.getUserList({ limit, offset });
+    const users = extractUsers(result);
+    if (users.length === 0) break;
+    for (const user of users) {
+      if (isSeedClerkUser(user)) {
+        ids.add(user.id);
+      }
+    }
+    offset += users.length;
+    if (users.length < limit) break;
+  }
+
+  return Array.from(ids);
+}
 
 async function cleanupDatabase() {
   const seedUsers = await prisma.users.findMany({
@@ -50,7 +98,7 @@ async function cleanupDatabase() {
       where: { id_projeto: { in: projectIds } },
     });
 
-    await prisma.alunosProjetos.deleteMany({
+    await prisma.devsProjetos.deleteMany({
       where: { projeto_id: { in: projectIds } },
     });
 
@@ -72,7 +120,11 @@ async function cleanupDatabase() {
 }
 
 async function cleanupClerkUsers(seedUserIds: string[]) {
-  for (const userId of seedUserIds) {
+  const ids = new Set(seedUserIds);
+  const extraIds = await findSeedClerkUserIds();
+  extraIds.forEach((id) => ids.add(id));
+
+  for (const userId of ids) {
     if (!userId) continue;
     try {
       await clerk.users.deleteUser(userId);

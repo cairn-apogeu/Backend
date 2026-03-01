@@ -7,6 +7,7 @@ export const ToProjetosSchema = z.object({
   id_cliente: z.string().optional(),
   id_mentor: z.string().optional(),
   id_helper: z.string().optional(),
+  id_rh: z.string().optional(),
   token: z.string().optional(),
   repositorio: z.string().optional(),
   owner: z.string().optional(),

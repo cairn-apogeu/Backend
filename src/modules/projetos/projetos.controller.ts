@@ -47,7 +47,7 @@ class ProjetoController {
     try {
       const projetos = await projetoService.findByUserId(id);
       if (projetos.length === 0) {
-        reply.status(404).send({ message: "Nenhum projeto encontrado para o aluno." });
+        reply.status(404).send({ message: "Nenhum projeto encontrado para o dev." });
       } else {
         reply.send(projetos);
       }
