@@ -19,8 +19,13 @@ class CardsController {
       if (isNaN(id)) {
         return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
       }
-       
-      const card = await cardsService.findById(id);
+
+      const userId = (request as any).userId;
+      if (!userId) {
+        return reply.status(401).send({ message: 'User not authenticated' });
+      }
+
+      const card = await cardsService.findById(id, userId);
       reply.send(card);
     } catch (error) {
       reply.status(404).send({ message: error });
@@ -76,11 +81,15 @@ class CardsController {
 
   async findBySprint(request: FastifyRequest<{ Params: { sprintId: number } }>, reply: FastifyReply) {
     try {
-      const sprintId = Number(request.params.sprintId); // Converte para número
+      const sprintId = Number(request.params.sprintId);
       if (isNaN(sprintId)) {
         return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
       }
-      const cards = await cardsService.findBySprint(sprintId);
+      const userId = (request as any).userId;
+      if (!userId) {
+        return reply.status(401).send({ message: 'User not authenticated' });
+      }
+      const cards = await cardsService.findBySprint(sprintId, userId);
       reply.send(cards);
     } catch (error) {
       reply.status(500).send({ message: error });
@@ -89,15 +98,44 @@ class CardsController {
 
   async findByProject(request: FastifyRequest<{ Params: { projectId: number } }>, reply: FastifyReply) {
     try {
-      const projectId = Number(request.params.projectId); // Converte para número
+      const projectId = Number(request.params.projectId);
       if (isNaN(projectId)) {
         return reply.status(400).send({ message: 'ID inválido. Deve ser um número válido.' });
       }
-       
-      const card = await cardsService.findByProject(projectId);
-      reply.send(card);
+      const userId = (request as any).userId;
+      if (!userId) {
+        return reply.status(401).send({ message: 'User not authenticated' });
+      }
+      const cards = await cardsService.findByProject(projectId, userId);
+      reply.send(cards);
     } catch (error) {
       reply.status(404).send({ message: error });
+    }
+  }
+
+  async computeXpByProject(request: FastifyRequest<{ Params: { projectId: string } }>, reply: FastifyReply) {
+    try {
+      const projectId = Number(request.params.projectId);
+      if (isNaN(projectId)) {
+        return reply.status(400).send({ message: "ID do projeto inválido." });
+      }
+      await cardsService.computeXpForUncomputedCardsByProject(projectId);
+      reply.send({ message: "XP computado para todos os cards não computados deste projeto." });
+    } catch (error) {
+      reply.status(500).send({ message: error });
+    }
+  }
+
+  async computeXpBySprint(request: FastifyRequest<{ Params: { sprintId: string } }>, reply: FastifyReply) {
+    try {
+      const sprintId = Number(request.params.sprintId);
+      if (isNaN(sprintId)) {
+        return reply.status(400).send({ message: "ID da sprint inválido." });
+      }
+      await cardsService.computeXpForUncomputedCardsBySprint(sprintId);
+      reply.send({ message: "XP computado para todos os cards não computados desta sprint e sprint marcada como computada." });
+    } catch (error) {
+      reply.status(500).send({ message: error });
     }
   }
 

@@ -20,7 +20,7 @@ class ProjetoService {
     try {
       return await prisma.projetos.findMany({
         include: {
-          AlunosProjetos: true
+          DevsProjetos: true
         }
       });
     } catch (error) {
@@ -28,23 +28,52 @@ class ProjetoService {
     }
   }
 
-  async findById(id: number) {
+  async findById(id: number, userId: string) {
     try {
-      return await prisma.projetos.findUnique({
+      const projeto = await prisma.projetos.findUnique({
         where: { id },
-        include: { sprints: true }
+        include: {
+          sprints: true,
+          DevsProjetos: true 
+        }
       });
+      if (!projeto) {
+        throw new Error("Projeto não encontrado");
+      }
+      // Busca o usuário
+      const user = await prisma.users.findUnique({
+        where: { user_clerk_id: userId },
+        select: { tipo_perfil: true }
+      });
+      if (!user) {
+        throw new Error("Usuário não encontrado");
+      }
+      // Verifica se o usuário é Admin
+      if (user.tipo_perfil === "Admin") {
+        return projeto;
+      }
+      // Verifica se o usuário está relacionado ao projeto
+      if (
+        projeto.id_cliente === userId ||
+        projeto.id_mentor === userId ||
+        projeto.id_helper === userId ||
+        projeto.id_rh === userId ||
+        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
+      ) {
+        return projeto;
+      }
+      throw new Error("Acesso negado: usuário não faz parte do projeto");
     } catch (error) {
       console.log("Erro no service", error);
-      throw new Error("Projeto não encontrado");
+      throw new Error("Projeto não encontrado ou acesso negado");
     }
   }
 
   async findByUserId(id: string) {
     try {
-      // Busca os projetos relacionados ao aluno pelo ID
-      const projetosAluno = await prisma.alunosProjetos.findMany({
-        where: { aluno_id: id },
+      // Busca os projetos relacionados ao dev pelo ID
+      const projetosDev = await prisma.devsProjetos.findMany({
+        where: { dev_id: id },
         include: {
           projeto: true, // Inclui os detalhes do projeto
         },
@@ -53,32 +82,72 @@ class ProjetoService {
         where: {
           OR: [
             { id_cliente: id },
-            { id_gestor: id }
+            { id_mentor: id },
+            { id_rh: id }
           ]
         }
       });
-      console.log(projetosAluno);
 
-      // Retorna apenas os projetos
-      return projetosAluno[0] ? projetosAluno.map((alunoProjeto) => alunoProjeto.projeto) : projetosClienteGestor
+      // Extrai os projetos do array de devsProjetos
+      const projetosDevList = projetosDev.map((devProjeto) => devProjeto.projeto);
+
+      // Junta todos os projetos e remove duplicatas por id
+      const todosProjetos = [...projetosDevList, ...projetosClienteGestor];
+      const projetosUnicos = Object.values(
+        todosProjetos.reduce((acc, projeto) => {
+          acc[projeto.id] = projeto;
+          return acc;
+        }, {} as Record<number, typeof todosProjetos[0]>)
+      );
+
+      return projetosUnicos;
     } catch (error) {
-      throw new Error("Projetos não encontrados para o aluno.");
+      throw new Error("Projetos não encontrados para o usuário.");
     }
   }
 
   async newProjeto(toProjetosDto: ToProjetosDto) {
     try {
+      let tokenToSave = toProjetosDto.token;
+      if (tokenToSave) {
+        try {
+          tokenToSave = await encryptData(tokenToSave);
+        } catch (encryptError) {
+          console.error("Erro ao criptografar o token:", encryptError);
+          throw new Error("Falha ao criptografar o token");
+        }
+      }
+      if (typeof toProjetosDto.valor !== 'number') {
+        throw new Error("O campo 'valor' é obrigatório e deve ser um número.");
+      }
+      if (!toProjetosDto.status) {
+        throw new Error("O campo 'status' é obrigatório e deve ser uma string.");
+      }
       return await prisma.projetos.create({
         data: {
           id_cliente: toProjetosDto.id_cliente,
-          id_gestor: toProjetosDto.id_gestor,
+          id_mentor: toProjetosDto.id_mentor,
+          id_helper: toProjetosDto.id_helper,
           nome: toProjetosDto.nome,
           valor: toProjetosDto.valor,
           status: toProjetosDto.status,
+          token: tokenToSave,
+          repositorio: toProjetosDto.repositorio,
+          owner: toProjetosDto.owner,
+          dia_inicio: toProjetosDto.dia_inicio,
+          dia_fim: toProjetosDto.dia_fim,
+          logo_url: toProjetosDto.logo_url,
+          id_rh: toProjetosDto.id_rh,
         },
       });
     } catch (error) {
-      throw new Error("Falha ao criar projeto");
+      let errorMessage = "";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = String(error);
+      }
+      throw new Error("Falha ao criar projeto: " + errorMessage);
     }
   }
 
@@ -86,7 +155,6 @@ class ProjetoService {
     try {
       if (toProjetosDto.token) {
         try {
-
           toProjetosDto.token = await encryptData(toProjetosDto.token);
         } catch (encryptError) {
           console.error("Erro ao criptografar o token:", encryptError);
@@ -95,7 +163,9 @@ class ProjetoService {
       }
       return await prisma.projetos.update({
         where: { id },
-        data: toProjetosDto,
+        data: {
+          ...toProjetosDto,
+        },
       });
     } catch (error) {
       console.error("Erro ao atualizar projeto:", error);
@@ -193,13 +263,33 @@ class ProjetoService {
     }
   }
 
+  async userHasAccessToProjeto(projetoId: number, userId: string): Promise<boolean> {
+    // Busca o projeto e devs relacionados
+    const projeto = await prisma.projetos.findUnique({
+      where: { id: projetoId },
+      include: { DevsProjetos: true },
+    });
+    if (!projeto) return false;
+    // Verifica se o usuário é cliente, mentor ou helper
+    if (
+      projeto.id_cliente === userId ||
+      projeto.id_mentor === userId ||
+      projeto.id_helper === userId ||
+      projeto.id_rh === userId
+    ) {
+      return true;
+    }
+    // Verifica se o usuário está listado como dev
+    if (projeto.DevsProjetos.some((ap) => ap.dev_id === userId)) {
+      return true;
+    }
+    return false;
+  }
 
-
-
-
-
-
-
+  async findByIdWithAccessCheck(id: number, userId: string) {
+    // Busca projeto com checagem de acesso e perfil
+    return this.findById(id, userId);
+  }
 
 }
 

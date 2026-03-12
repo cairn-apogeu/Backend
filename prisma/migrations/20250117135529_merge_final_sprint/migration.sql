@@ -43,11 +43,11 @@ CREATE TABLE "Sprints" (
 );
 
 -- CreateTable
-CREATE TABLE "AlunosProjetos" (
+CREATE TABLE "DevsProjetos" (
     "projeto_id" INTEGER NOT NULL,
-    "aluno_id" TEXT NOT NULL,
+    "dev_id" TEXT NOT NULL,
 
-    CONSTRAINT "AlunosProjetos_pkey" PRIMARY KEY ("projeto_id","aluno_id")
+    CONSTRAINT "DevsProjetos_pkey" PRIMARY KEY ("projeto_id","dev_id")
 );
 
 -- CreateTable
@@ -85,10 +85,10 @@ CREATE INDEX "fk_projetos_id_gestor" ON "Projetos"("id_gestor");
 CREATE INDEX "fk_sprints_id_projeto" ON "Sprints"("id_projeto");
 
 -- CreateIndex
-CREATE INDEX "fk_alunos_projeto_id" ON "AlunosProjetos"("projeto_id");
+CREATE INDEX "fk_devs_projeto_id" ON "DevsProjetos"("projeto_id");
 
 -- CreateIndex
-CREATE INDEX "fk_alunos_aluno_id" ON "AlunosProjetos"("aluno_id");
+CREATE INDEX "fk_devs_dev_id" ON "DevsProjetos"("dev_id");
 
 -- CreateIndex
 CREATE INDEX "fk_cards_assigned" ON "Cards"("assigned");
@@ -109,10 +109,10 @@ ALTER TABLE "Projetos" ADD CONSTRAINT "Projetos_id_gestor_fkey" FOREIGN KEY ("id
 ALTER TABLE "Sprints" ADD CONSTRAINT "Sprints_id_projeto_fkey" FOREIGN KEY ("id_projeto") REFERENCES "Projetos"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AlunosProjetos" ADD CONSTRAINT "AlunosProjetos_projeto_id_fkey" FOREIGN KEY ("projeto_id") REFERENCES "Projetos"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "DevsProjetos" ADD CONSTRAINT "DevsProjetos_projeto_id_fkey" FOREIGN KEY ("projeto_id") REFERENCES "Projetos"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AlunosProjetos" ADD CONSTRAINT "AlunosProjetos_aluno_id_fkey" FOREIGN KEY ("aluno_id") REFERENCES "Users"("user_clerk_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "DevsProjetos" ADD CONSTRAINT "DevsProjetos_dev_id_fkey" FOREIGN KEY ("dev_id") REFERENCES "Users"("user_clerk_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Cards" ADD CONSTRAINT "Cards_assigned_fkey" FOREIGN KEY ("assigned") REFERENCES "Users"("user_clerk_id") ON DELETE SET NULL ON UPDATE CASCADE;

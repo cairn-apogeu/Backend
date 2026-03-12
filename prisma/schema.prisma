@@ -7,29 +7,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Difficulty {
+  MUITO_FACIL
+  FACIL
+  MEDIO
+  DIFICIL
+  MUITO_DIFICIL
+}
+
+enum Status {
+  Backlog
+  ToDo
+  Doing
+  Done
+  Prevented
+  CanMine
+}
+
+enum TipoPerfil {
+  Mentor
+  Cliente
+  Dev
+  Admin
+  RH
+}
+
 model Users {
-  user_clerk_id  String    @id
-  tipo_perfil    String    @db.VarChar(10)
-  discord        String?   @db.VarChar(20)
-  linkedin       String?   @db.VarChar(30)
-  github         String?   @db.VarChar(30)
-  objetivo_curto String?
-  objetivo_medio String?
-  objetivo_longo String?
-  genero         String?   @db.VarChar(10)
-  nascimento     DateTime?
+  user_clerk_id     String    @id
+  tipo_perfil       TipoPerfil
+  discord           String?   @db.VarChar(20)
+  linkedin          String?   @db.VarChar(30)
+  github            String?   @db.VarChar(30)
+  objetivo_curto    String?
+  objetivo_medio    String?
+  objetivo_longo    String?
+  genero            String?   @db.VarChar(10)
+  nascimento        DateTime?
+  biografia         String?   @db.VarChar(255)
 
-  projetosCliente Projetos[] @relation("ProjetosCliente")
-  projetosGestor  Projetos[] @relation("ProjetosGestor")
-  cards           Cards[]    @relation("CardAssigned")
+  projetosCliente   Projetos[]         @relation("ProjetosCliente")
+  projetosMentor    Projetos[]         @relation("ProjetosMentor")
+  projetosHelper    Projetos[]         @relation("ProjetosHelper")
+  projetosRH        Projetos[]         @relation("ProjetosRH")
+  cards             Cards[]            @relation("CardAssigned")
+  dailyPresencasDev DailyDevPresence[]
+  capacidadesCognitivas CapacidadeCognitivaAplicada[]
+  comunicacoesOperacionais ComunicacaoOperacional[]
+  execucoesConfiaveis ExecucaoConfiavel[]
+  contribuicoesSistemicas ContribuicaoSistemica[]
 
-  AlunosProjetos AlunosProjetos[]
+  DevsProjetos DevsProjetos[]
+
+  userStatistics UserStatistics?
+  last_card      Int?
 }
 
 model Projetos {
   id          Int      @id @default(autoincrement())
-  id_cliente  String
-  id_gestor   String
+  id_cliente  String?
+  id_mentor   String?
+  id_helper   String?
+  id_rh       String?
   nome        String   @db.VarChar(100)
   valor       Int
   status      String   @db.VarChar(50)
@@ -38,15 +76,21 @@ model Projetos {
   owner       String?  @db.VarChar(100)
   dia_inicio  DateTime @default(now())
   dia_fim     DateTime @default(now())
+  logo_url    String?  @db.VarChar(255)
 
-  cliente        Users            @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
-  gestor         Users            @relation("ProjetosGestor", fields: [id_gestor], references: [user_clerk_id])
+  cliente        Users?           @relation("ProjetosCliente", fields: [id_cliente], references: [user_clerk_id])
+  mentor         Users?           @relation("ProjetosMentor", fields: [id_mentor], references: [user_clerk_id])
+  helper         Users?           @relation("ProjetosHelper", fields: [id_helper], references: [user_clerk_id])
+  rh             Users?           @relation("ProjetosRH", fields: [id_rh], references: [user_clerk_id])
   sprints        Sprints[]
-  AlunosProjetos AlunosProjetos[]
+  dailies        Daily[]
+  DevsProjetos DevsProjetos[]
   cards          Cards[]
 
   @@index([id_cliente], map: "fk_projetos_id_cliente")
-  @@index([id_gestor], map: "fk_projetos_id_gestor")
+  @@index([id_mentor], map: "fk_projetos_id_mentor")
+  @@index([id_helper], map: "fk_projetos_id_helper")
+  @@index([id_rh], map: "fk_projetos_id_rh")
 }
 
 model Sprints {
@@ -54,32 +98,38 @@ model Sprints {
   id_projeto Int
   numero     Int
   objetivo   String?
+  computed   Boolean  @default(false)
   dia_inicio DateTime @default(now())
   dia_fim    DateTime @default(now())
 
   projeto Projetos @relation(fields: [id_projeto], references: [id])
   cards   Cards[]
+  dailies Daily[]
+  capacidadesCognitivas CapacidadeCognitivaAplicada[]
+  comunicacoesOperacionais ComunicacaoOperacional[]
+  execucoesConfiaveis ExecucaoConfiavel[]
+  contribuicoesSistemicas ContribuicaoSistemica[]
 
   @@index([id_projeto], map: "fk_sprints_id_projeto")
 }
 
-model AlunosProjetos {
+model DevsProjetos {
   projeto_id Int
-  aluno_id   String
+  dev_id   String
 
   projeto Projetos @relation(fields: [projeto_id], references: [id])
-  aluno   Users    @relation(fields: [aluno_id], references: [user_clerk_id])
+  dev   Users    @relation(fields: [dev_id], references: [user_clerk_id])
 
-  @@id([projeto_id, aluno_id])
-  @@index([projeto_id], map: "fk_alunos_projeto_id")
-  @@index([aluno_id], map: "fk_alunos_aluno_id")
+  @@id([projeto_id, dev_id])
+  @@index([projeto_id], map: "fk_devs_projeto_id")
+  @@index([dev_id], map: "fk_devs_dev_id")
 }
 
 model Cards {
   id                 Int       @id @default(autoincrement())
   titulo             String    @db.VarChar(100)
   descricao          String?
-  status             String    @db.VarChar(20)
+  status             Status    @default(Backlog)
   tempo_estimado     Int?
   tempo              Int?
   assigned           String?
@@ -88,14 +138,17 @@ model Cards {
   projeto            Int?
   dod                String?
   dor                String?
-  xp_frontend        Int?
-  xp_backend         Int?
-  xp_negocios        Int?
-  xp_arquitetura     Int?
-  xp_design          Int?
-  xp_datalytics      Int?
+  xp_frontend        Boolean?  @default(false)
+  xp_backend         Boolean?  @default(false)
+  xp_negocios        Boolean?  @default(false)
+  xp_arquitetura     Boolean?  @default(false)
+  xp_design          Boolean?  @default(false)
+  xp_data_analysis   Boolean?  @default(false)
   indicacao_conteudo String?
   data_criacao       DateTime? @default(now())
+  computed           Boolean   @default(false)
+  difficulty         Difficulty?
+  order              Int?
 
   assignedTo      Users?    @relation("CardAssigned", fields: [assigned], references: [user_clerk_id])
   sprintRelation  Sprints?  @relation(fields: [sprint], references: [id])
@@ -104,4 +157,131 @@ model Cards {
   @@index([assigned], map: "fk_cards_assigned")
   @@index([sprint], map: "fk_cards_sprint")
   @@index([projeto], map: "fk_cards_projeto")
+}
+
+model UserStatistics {
+  id                Int     @id @default(autoincrement())
+  user_clerk_id     String  @unique
+  xp_frontend       Int     @default(0)
+  xp_backend        Int     @default(0)
+  xp_negocios       Int     @default(0)
+  xp_arquitetura    Int     @default(0)
+  xp_design         Int     @default(0)
+  xp_data_analysis  Int     @default(0)
+  total_throughput  Int     @default(0)
+  deltatime_predict Float   @default(0)
+  average_daily     Float   @default(0)
+
+  user Users @relation(fields: [user_clerk_id], references: [user_clerk_id])
+
+  @@index([user_clerk_id])
+}
+
+model Daily {
+  id         Int      @id @default(autoincrement())
+  projeto_id Int
+  sprint_id  Int
+  conteudo   String   @db.Text
+  criado_em  DateTime @default(now())
+
+  projeto Projetos @relation(fields: [projeto_id], references: [id])
+  sprint  Sprints  @relation(fields: [sprint_id], references: [id])
+  presencasDev DailyDevPresence[]
+  capacidadesCognitivas CapacidadeCognitivaAplicada[]
+  comunicacoesOperacionais ComunicacaoOperacional[]
+  execucoesConfiaveis ExecucaoConfiavel[]
+  contribuicoesSistemicas ContribuicaoSistemica[]
+
+  @@index([projeto_id])
+  @@index([sprint_id])
+}
+
+model DailyDevPresence {
+  daily_id Int
+  dev_id   String
+  presente Boolean @default(true)
+
+  daily Daily @relation(fields: [daily_id], references: [id])
+  dev   Users @relation(fields: [dev_id], references: [user_clerk_id])
+
+  @@id([daily_id, dev_id])
+  @@index([dev_id])
+}
+
+model CapacidadeCognitivaAplicada {
+  id                              Int    @id @default(autoincrement())
+  user_id                         String
+  sprint_id                       Int
+  daily_id                        Int?
+  reformulacao_problema           Int?
+  separacao_sintoma_causa         Int?
+  autocritica_tecnica             Int?
+  escolha_abordagens_tecnicas     Int?
+
+  user   Users  @relation(fields: [user_id], references: [user_clerk_id])
+  sprint Sprints @relation(fields: [sprint_id], references: [id])
+  daily  Daily?  @relation(fields: [daily_id], references: [id])
+
+  @@index([user_id])
+  @@index([sprint_id])
+  @@index([daily_id])
+}
+
+model ComunicacaoOperacional {
+  id                                    Int    @id @default(autoincrement())
+  user_id                               String
+  sprint_id                             Int
+  daily_id                              Int?
+  validacao_entendimento_pre_execucao   Int?
+  clareza_exposicao_tecnica             Int?
+  participacao_discussoes_tecnicas      Int?
+  sinalizacao_desalinhamento_ruido      Int?
+
+  user   Users  @relation(fields: [user_id], references: [user_clerk_id])
+  sprint Sprints @relation(fields: [sprint_id], references: [id])
+  daily  Daily?  @relation(fields: [daily_id], references: [id])
+
+  @@index([user_id])
+  @@index([sprint_id])
+  @@index([daily_id])
+}
+
+model ExecucaoConfiavel {
+  id                              Int    @id @default(autoincrement())
+  user_id                         String
+  sprint_id                       Int
+  daily_id                        Int?
+  delta_time_predict              Int?
+  reestimativa_ativa              Int?
+  estabilidade_throughput         Int?
+  sinalizacao_bloqueios           Int?
+  qualidade_cards_dor             Int?
+  aderencia_entregas_dod          Int?
+
+  user   Users  @relation(fields: [user_id], references: [user_clerk_id])
+  sprint Sprints @relation(fields: [sprint_id], references: [id])
+  daily  Daily?  @relation(fields: [daily_id], references: [id])
+
+  @@index([user_id])
+  @@index([sprint_id])
+  @@index([daily_id])
+}
+
+model ContribuicaoSistemica {
+  id                                         Int    @id @default(autoincrement())
+  user_id                                    String
+  sprint_id                                  Int
+  daily_id                                   Int?
+  ajudas_prestadas                           Int?
+  sinalizacao_risco_tecnico_integracao       Int?
+  compartilhamento_solucoes                  Int?
+  participacao_feedbacks                     Int?
+
+  user   Users  @relation(fields: [user_id], references: [user_clerk_id])
+  sprint Sprints @relation(fields: [sprint_id], references: [id])
+  daily  Daily?  @relation(fields: [daily_id], references: [id])
+
+  @@index([user_id])
+  @@index([sprint_id])
+  @@index([daily_id])
 }

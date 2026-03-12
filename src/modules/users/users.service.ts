@@ -1,3 +1,4 @@
+import { Prisma, TipoPerfil } from "@prisma/client";
 import prisma from "../../clients/prisma.client";
 import { ToUserDto } from "./schemas/to-user.schema";
 import { UpdateUserDto } from "./schemas/update-user.schema";
@@ -32,27 +33,31 @@ class UserService {
         throw new Error("ID do projeto inválido");
       }
   
-      const alunosProjetos = await prisma.alunosProjetos.findMany({
+      const devsProjetos = await prisma.devsProjetos.findMany({
         where: { projeto_id: projetoId },
         include: {
-          aluno: true, // Inclui detalhes dos alunos associados
+          dev: true, // Inclui detalhes dos devs associados
         },
       });
   
-      if (alunosProjetos.length === 0) {
-        throw new Error("Nenhum aluno encontrado para este projeto");
+      if (devsProjetos.length === 0) {
+        throw new Error("Nenhum dev encontrado para este projeto");
       }
   
-      return alunosProjetos.map((ap) => ap.aluno); // Retorna apenas os detalhes dos alunos
+      return devsProjetos.map((ap) => ap.dev); // Retorna apenas os detalhes dos devs
     } catch (error) {
-      throw new Error( "Erro ao buscar alunos do projeto");
+      throw new Error( "Erro ao buscar devs do projeto");
     }
   }
 
   async newUser(toUserDto: ToUserDto) {
     try {
-
-      return await prisma.users.create({ data: toUserDto });
+      const { tipo_perfil, ...rest } = toUserDto;
+      const data: Prisma.UsersUncheckedCreateInput = {
+        ...rest,
+        tipo_perfil: this.normalizeTipoPerfil(tipo_perfil),
+      };
+      return await prisma.users.create({ data });
     } catch (error) {
         console.error("Erro no Prisma:", error);
       throw new Error("Falha ao criar usuário");
@@ -61,11 +66,16 @@ class UserService {
 
   async updateUser(id: string, toUserDto: Partial<ToUserDto>) {
     try {
-
-
+      const { tipo_perfil, ...rest } = toUserDto;
+      const data: Prisma.UsersUncheckedUpdateInput = {
+        ...rest,
+        ...(tipo_perfil
+          ? { tipo_perfil: this.normalizeTipoPerfil(tipo_perfil) }
+          : {}),
+      };
       return await prisma.users.update({
         where: { user_clerk_id: id },
-        data : toUserDto,
+        data,
       });
     } catch (error) {
       throw new Error("Falha ao atualizar usuário");
@@ -79,6 +89,27 @@ class UserService {
       });
     } catch (error) {
       throw new Error("Falha ao deletar usuário");
+    }
+  }
+
+  private normalizeTipoPerfil(value?: string): TipoPerfil {
+    if (!value) {
+      throw new Error("tipo_perfil é obrigatório");
+    }
+    const normalized = value.trim().toLowerCase();
+    switch (normalized) {
+      case "mentor":
+        return TipoPerfil.Mentor;
+      case "cliente":
+        return TipoPerfil.Cliente;
+      case "dev":
+        return TipoPerfil.Dev;
+      case "admin":
+        return TipoPerfil.Admin;
+      case "rh":
+        return TipoPerfil.RH;
+      default:
+        throw new Error(`tipo_perfil inválido: ${value}`);
     }
   }
 }
