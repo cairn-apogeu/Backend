@@ -13,6 +13,24 @@ class ExecucaoConfiavelService {
     return prisma.execucaoConfiavel.findUnique({ where: { id } });
   }
 
+  async findBySprint(sprintId: number) {
+    return prisma.execucaoConfiavel.findMany({
+      where: { sprint_id: sprintId },
+    });
+  }
+
+  async findByProject(projectId: number) {
+    return prisma.execucaoConfiavel.findMany({
+      where: { sprint: { id_projeto: projectId } },
+    });
+  }
+
+  async findByUser(userId: string) {
+    return prisma.execucaoConfiavel.findMany({
+      where: { user_id: userId },
+    });
+  }
+
   async create(data: ExecucaoConfiavelDto) {
     return prisma.execucaoConfiavel.create({ data });
   }

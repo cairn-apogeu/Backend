@@ -85,17 +85,64 @@ async function cleanupDatabase() {
       })
     ).map((s) => s.id);
 
-    await prisma.cards.deleteMany({
+    const cardIds = (
+      await prisma.cards.findMany({
+        where: {
+          OR: [
+            { projeto: { in: projectIds } },
+            { sprint: { in: sprintIds } },
+          ],
+        },
+        select: { id: true },
+      })
+    ).map((c) => c.id);
+
+    const dailyIds = (
+      await prisma.daily.findMany({
+        where: { projeto_id: { in: projectIds } },
+        select: { id: true },
+      })
+    ).map((d) => d.id);
+
+    await prisma.cardProgression.deleteMany({
       where: {
         OR: [
-          { projeto: { in: projectIds } },
-          { sprint: { in: sprintIds } },
+          { card_id: { in: cardIds } },
+          { projeto_id: { in: projectIds } },
+          { sprint_id: { in: sprintIds } },
         ],
       },
     });
 
+    const indicatorWhere = {
+      OR: [
+        { sprint_id: { in: sprintIds } },
+        { daily_id: { in: dailyIds } },
+        { user_id: { in: seedUserIds } },
+      ],
+    };
+
+    await prisma.capacidadeCognitivaAplicada.deleteMany({
+      where: indicatorWhere,
+    });
+    await prisma.comunicacaoOperacional.deleteMany({ where: indicatorWhere });
+    await prisma.execucaoConfiavel.deleteMany({ where: indicatorWhere });
+    await prisma.contribuicaoSistemica.deleteMany({ where: indicatorWhere });
+
+    await prisma.dailyDevPresence.deleteMany({
+      where: { daily_id: { in: dailyIds } },
+    });
+
+    await prisma.daily.deleteMany({
+      where: { id: { in: dailyIds } },
+    });
+
+    await prisma.cards.deleteMany({
+      where: { id: { in: cardIds } },
+    });
+
     await prisma.sprints.deleteMany({
-      where: { id_projeto: { in: projectIds } },
+      where: { id: { in: sprintIds } },
     });
 
     await prisma.devsProjetos.deleteMany({

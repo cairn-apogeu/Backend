@@ -13,6 +13,24 @@ class ComunicacaoOperacionalService {
     return prisma.comunicacaoOperacional.findUnique({ where: { id } });
   }
 
+  async findBySprint(sprintId: number) {
+    return prisma.comunicacaoOperacional.findMany({
+      where: { sprint_id: sprintId },
+    });
+  }
+
+  async findByProject(projectId: number) {
+    return prisma.comunicacaoOperacional.findMany({
+      where: { sprint: { id_projeto: projectId } },
+    });
+  }
+
+  async findByUser(userId: string) {
+    return prisma.comunicacaoOperacional.findMany({
+      where: { user_id: userId },
+    });
+  }
+
   async create(data: ComunicacaoOperacionalDto) {
     return prisma.comunicacaoOperacional.create({ data });
   }

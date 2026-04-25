@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Difficulty {
@@ -86,6 +85,7 @@ model Projetos {
   dailies        Daily[]
   DevsProjetos DevsProjetos[]
   cards          Cards[]
+  cardProgressions CardProgression[]
 
   @@index([id_cliente], map: "fk_projetos_id_cliente")
   @@index([id_mentor], map: "fk_projetos_id_mentor")
@@ -109,6 +109,7 @@ model Sprints {
   comunicacoesOperacionais ComunicacaoOperacional[]
   execucoesConfiaveis ExecucaoConfiavel[]
   contribuicoesSistemicas ContribuicaoSistemica[]
+  cardProgressions CardProgression[]
 
   @@index([id_projeto], map: "fk_sprints_id_projeto")
 }
@@ -153,6 +154,7 @@ model Cards {
   assignedTo      Users?    @relation("CardAssigned", fields: [assigned], references: [user_clerk_id])
   sprintRelation  Sprints?  @relation(fields: [sprint], references: [id])
   projectRelation Projetos? @relation(fields: [projeto], references: [id])
+  progressions    CardProgression[]
 
   @@index([assigned], map: "fk_cards_assigned")
   @@index([sprint], map: "fk_cards_sprint")
@@ -206,6 +208,24 @@ model DailyDevPresence {
 
   @@id([daily_id, dev_id])
   @@index([dev_id])
+}
+
+model CardProgression {
+  id          Int      @id @default(autoincrement())
+  card_id     Int
+  projeto_id  Int?
+  sprint_id   Int?
+  from_status Status
+  to_status   Status
+  changed_at  DateTime @default(now())
+
+  card    Cards    @relation(fields: [card_id], references: [id])
+  projeto Projetos? @relation(fields: [projeto_id], references: [id])
+  sprint  Sprints?  @relation(fields: [sprint_id], references: [id])
+
+  @@index([card_id])
+  @@index([projeto_id])
+  @@index([sprint_id])
 }
 
 model CapacidadeCognitivaAplicada {

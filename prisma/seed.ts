@@ -1,15 +1,15 @@
 import "dotenv/config";
 import { createClerkClient } from "@clerk/clerk-sdk-node";
+import { Status } from "@prisma/client";
 import prisma from "../src/clients/prisma.client";
 
-const COMPLETED_PROJECTS = 4;
-const SPRINTS_PER_PROJECT = 5;
-const CARDS_PER_SPRINT = 10;
 const STUDENTS_PER_PROJECT = 6;
+const CARDS_PER_SPRINT = 8;
 const DEFAULT_PASSWORD = "ApogeuSeed!123";
 const SEED_LABEL = "Seed";
+const BASE_YEAR = 2024;
 
-type SeedRole = "Mentor" | "Cliente" | "Dev";
+type SeedRole = "Mentor" | "Cliente" | "Dev" | "RH";
 
 type SeededUser = {
   id: string;
@@ -19,8 +19,50 @@ type SeededUser = {
   role: SeedRole;
 };
 
-const statusPool = ["Backlog", "ToDo", "Doing", "Done", "Prevented", "CanMine"];
-const difficultyPool = ["MUITO_FACIL", "FACIL", "MEDIO", "DIFICIL", "MUITO_DIFICIL"] as const;
+type ProjectBlueprint = {
+  name: string;
+  status: string;
+  sprintCount: number;
+  computedSprints: number;
+  startMonth: number;
+  durationMonths: number;
+};
+
+const PROJECT_BLUEPRINTS: ProjectBlueprint[] = [
+  {
+    name: `${SEED_LABEL} Squad Onboarding CRM`,
+    status: "Finalizado",
+    sprintCount: 4,
+    computedSprints: 4,
+    startMonth: 0,
+    durationMonths: 5,
+  },
+  {
+    name: `${SEED_LABEL} Portal do Cliente`,
+    status: "Finalizado",
+    sprintCount: 5,
+    computedSprints: 5,
+    startMonth: 2,
+    durationMonths: 6,
+  },
+  {
+    name: `${SEED_LABEL} Ferramenta de Suporte`,
+    status: "Em andamento",
+    sprintCount: 4,
+    computedSprints: 3,
+    startMonth: 5,
+    durationMonths: 5,
+  },
+];
+
+const difficultyPool = [
+  "MUITO_FACIL",
+  "FACIL",
+  "MEDIO",
+  "DIFICIL",
+  "MUITO_DIFICIL",
+] as const;
+
 const xpMap = {
   MUITO_FACIL: 10,
   FACIL: 20,
@@ -28,6 +70,7 @@ const xpMap = {
   DIFICIL: 40,
   MUITO_DIFICIL: 50,
 } as const;
+
 const xpFields = [
   "xp_frontend",
   "xp_backend",
@@ -57,6 +100,39 @@ if (!clerkSecret) {
 
 const clerk = createClerkClient({ secretKey: clerkSecret });
 
+type CardCreateInput = Parameters<typeof prisma.cards.create>[0]["data"];
+
+type ProgressionCreateInput = Parameters<
+  typeof prisma.cardProgression.createMany
+>[0]["data"][number];
+
+function addDays(base: Date, days: number) {
+  const result = new Date(base.getTime());
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function addMonths(base: Date, months: number) {
+  const result = new Date(base.getTime());
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+function pickRandom<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function juniorScore(max = 4) {
+  return Math.max(1, Math.min(max, Math.round(1 + Math.random() * 3)));
+}
+
+function realisticTempo(estimated: number, completed: boolean) {
+  if (completed) {
+    return Math.max(estimated, estimated + Math.floor(Math.random() * 2) - 1);
+  }
+  return estimated + Math.floor(Math.random() * 3);
+}
+
 async function ensureClerkUser(role: SeedRole, index: number): Promise<SeededUser> {
   const firstName = `${role} ${index + 1}`;
   const lastName = "Seed";
@@ -64,7 +140,6 @@ async function ensureClerkUser(role: SeedRole, index: number): Promise<SeededUse
   const username = `${SEED_LABEL.toLowerCase()}_${role.toLowerCase()}_${index + 1}`
     .replace(/[^a-z0-9_]/g, "")
     .slice(0, 32);
-  const metadataRole = role === "Dev" ? "Dev" : role;
 
   const existing = await clerk.users.getUserList({
     emailAddress: [email],
@@ -76,7 +151,7 @@ async function ensureClerkUser(role: SeedRole, index: number): Promise<SeededUse
     try {
       await clerk.users.updateUser(user.id, {
         username,
-        publicMetadata: { tipo_perfil: metadataRole },
+        publicMetadata: { tipo_perfil: role },
       });
     } catch (error) {
       console.warn(`Não foi possível atualizar metadata para ${user.id}`, error);
@@ -90,7 +165,7 @@ async function ensureClerkUser(role: SeedRole, index: number): Promise<SeededUse
     firstName,
     lastName,
     username,
-    publicMetadata: { tipo_perfil: metadataRole },
+    publicMetadata: { tipo_perfil: role },
   });
 
   return { id: user.id, email, firstName, lastName, role };
@@ -106,33 +181,45 @@ async function provisionRoleUsers(role: SeedRole, total: number) {
 }
 
 async function upsertLocalUsers(users: SeededUser[]) {
-const payload = users.map((user) => ({
-    user_clerk_id: user.id,
-    tipo_perfil: user.role,
-    discord: `seed${user.id.slice(-4)}`.slice(0, 20),
-    linkedin: `apogeu-${user.id.slice(-6)}`.slice(0, 30),
-    github: `seed-${user.id.slice(-6)}`.slice(0, 30),
-    objetivo_curto: `Objetivo curto de ${user.firstName}`.slice(0, 255),
-    objetivo_medio: `Objetivo médio de ${user.firstName}`.slice(0, 255),
-    objetivo_longo: `Objetivo longo de ${user.firstName}`.slice(0, 255),
-    genero: "ND",
-    nascimento: new Date("1997-01-01"),
-    biografia: `${SEED_LABEL} profile para ${user.role}`.slice(0, 255),
-  }));
+  const payload = users.map((user) => {
+    const isDev = user.role === "Dev";
+    return {
+      user_clerk_id: user.id,
+      tipo_perfil: user.role,
+      discord: `${user.role.toLowerCase()}${user.id.slice(-4)}`.slice(0, 20),
+      linkedin: `linkedin.com/in/${user.firstName.toLowerCase().replace(/\s/g, "")}-${user.id.slice(-4)}`.slice(0, 30),
+      github: `${user.firstName.toLowerCase().replace(/\s/g, "")}-junior`.slice(0, 30),
+      objetivo_curto: isDev
+        ? "Concluir features com acompanhamento do mentor"
+        : "Suportar squads de formação",
+      objetivo_medio: isDev
+        ? "Ganhar autonomia em revisões e refinamentos"
+        : "Evoluir processos do programa",
+      objetivo_longo: isDev
+        ? "Tornar-se dev pleno em 18 meses"
+        : "Escalar novos squads juniores",
+      genero: "ND",
+      nascimento: new Date("1999-01-01"),
+      biografia: `${user.firstName} faz parte do ${SEED_LABEL} e atua como ${user.role}.`,
+    };
+  });
 
   await prisma.users.createMany({ data: payload, skipDuplicates: true });
 }
 
 async function resetSeedData() {
+  await prisma.cardProgression.deleteMany();
+  await prisma.capacidadeCognitivaAplicada.deleteMany();
+  await prisma.comunicacaoOperacional.deleteMany();
+  await prisma.execucaoConfiavel.deleteMany();
+  await prisma.contribuicaoSistemica.deleteMany();
+  await prisma.dailyDevPresence.deleteMany();
+  await prisma.daily.deleteMany();
   await prisma.userStatistics.deleteMany();
   await prisma.cards.deleteMany();
   await prisma.sprints.deleteMany();
   await prisma.devsProjetos.deleteMany();
   await prisma.projetos.deleteMany();
-}
-
-function pickRandom<T>(items: readonly T[]): T {
-  return items[Math.floor(Math.random() * items.length)];
 }
 
 function buildCardData(options: {
@@ -141,44 +228,80 @@ function buildCardData(options: {
   assigned: string;
   order: number;
   completed: boolean;
-}): Parameters<typeof prisma.cards.createMany>[0]["data"][number] {
-  const tempoEstimado = 4 + Math.floor(Math.random() * 8);
-  const tempoReal = tempoEstimado + Math.floor(Math.random() * 3);
-
+  finalStatus: Status;
+  createdAt: Date;
+}): CardCreateInput {
+  const estimatedHours = 1.5 + Math.random() * 2.5; // 1.5h até ~4h
+  const tempoEstimado = Math.round(estimatedHours * 60); // minutos
+  const tempoReal = Math.round(
+    realisticTempo(estimatedHours, options.completed) * 60
+  );
+  const difficulty = pickRandom(difficultyPool);
   const xpFlags = {
-    xp_frontend: Math.random() > 0.4,
-    xp_backend: Math.random() > 0.4,
-    xp_negocios: Math.random() > 0.5,
-    xp_arquitetura: Math.random() > 0.6,
-    xp_design: Math.random() > 0.5,
-    xp_data_analysis: Math.random() > 0.6,
+    xp_frontend: Math.random() > 0.65,
+    xp_backend: Math.random() > 0.55,
+    xp_negocios: Math.random() > 0.7,
+    xp_arquitetura: Math.random() > 0.75,
+    xp_design: Math.random() > 0.6,
+    xp_data_analysis: Math.random() > 0.8,
   };
 
   return {
     titulo: `${SEED_LABEL} Card #${options.projectId}-${options.order}`,
-    descricao: "Implementação de funcionalidade semente",
-    status: pickRandom(statusPool),
+    descricao: "Refinamento e implementação acompanhada",
+    status: options.finalStatus,
     tempo_estimado: tempoEstimado,
     tempo: tempoReal,
     assigned: options.assigned,
     sprint: options.sprintId,
     projeto: options.projectId,
     prova_pr: `https://drive.google.com/${options.projectId}-${options.order}`,
-    dod: "Definição de pronto validada com QA",
-    dor: "Definição de pronto revisada com cliente",
-    indicacao_conteudo: "https://apogeu.dev/recursos/kanban",
+    dod: "Revisado com mentor",
+    dor: "Definido junto ao cliente",
+    indicacao_conteudo: "https://apogeu.dev/trilhas/junior",
     computed: options.completed,
-    difficulty: pickRandom(difficultyPool),
+    difficulty,
     order: options.order,
-    data_criacao: new Date(),
+    data_criacao: options.createdAt,
     ...xpFlags,
-  };
+  } satisfies CardCreateInput;
 }
 
-function getStatsAccumulator(
-  map: Map<string, StatsAccumulator>,
-  userId: string
-): StatsAccumulator {
+function buildProgressionRecords(params: {
+  cardId: number;
+  projectId: number;
+  sprintId: number;
+  finalStatus: Status;
+  sprintStart: Date;
+}): ProgressionCreateInput[] {
+  const sequence: Status[] = [Status.Backlog, Status.ToDo];
+  if (params.finalStatus === Status.Done || params.finalStatus === Status.CanMine) {
+    sequence.push(Status.Doing, params.finalStatus);
+  } else if (params.finalStatus === Status.Doing) {
+    sequence.push(Status.Doing);
+  } else if (params.finalStatus === Status.Prevented) {
+    sequence.push(Status.Doing, Status.Prevented);
+  } else {
+    sequence.push(params.finalStatus);
+  }
+
+  const records: ProgressionCreateInput[] = [];
+  let cursor = addDays(params.sprintStart, 1);
+  for (let i = 1; i < sequence.length; i++) {
+    records.push({
+      card_id: params.cardId,
+      projeto_id: params.projectId,
+      sprint_id: params.sprintId,
+      from_status: sequence[i - 1],
+      to_status: sequence[i],
+      changed_at: cursor,
+    });
+    cursor = addDays(cursor, 2);
+  }
+  return records;
+}
+
+function getStatsAccumulator(map: Map<string, StatsAccumulator>, userId: string) {
   if (!map.has(userId)) {
     map.set(userId, {
       xp_frontend: 0,
@@ -196,10 +319,7 @@ function getStatsAccumulator(
   return map.get(userId)!;
 }
 
-function applyCardToStats(
-  card: Parameters<typeof prisma.cards.createMany>[0]["data"][number],
-  statsMap: Map<string, StatsAccumulator>
-) {
+function applyCardToStats(card: CardCreateInput, statsMap: Map<string, StatsAccumulator>) {
   if (!card.assigned || !card.computed) return;
 
   const xpValue = xpMap[card.difficulty as keyof typeof xpMap] ?? 0;
@@ -247,65 +367,166 @@ async function persistUserStatistics(statsMap: Map<string, StatsAccumulator>) {
   await prisma.userStatistics.createMany({ data, skipDuplicates: true });
 }
 
+async function createIndicatorsForDaily(params: {
+  sprintId: number;
+  dailyId: number;
+  userIds: string[];
+}) {
+  const { sprintId, dailyId, userIds } = params;
+
+  const capacidadePayload = userIds.map((user_id) => ({
+    user_id,
+    sprint_id: sprintId,
+    daily_id: dailyId,
+    reformulacao_problema: juniorScore(),
+    separacao_sintoma_causa: juniorScore(),
+    autocritica_tecnica: juniorScore(),
+    escolha_abordagens_tecnicas: juniorScore(),
+  }));
+
+  const comunicacaoPayload = userIds.map((user_id) => ({
+    user_id,
+    sprint_id: sprintId,
+    daily_id: dailyId,
+    validacao_entendimento_pre_execucao: juniorScore(),
+    clareza_exposicao_tecnica: juniorScore(),
+    participacao_discussoes_tecnicas: juniorScore(),
+    sinalizacao_desalinhamento_ruido: juniorScore(),
+  }));
+
+  const execucaoPayload = userIds.map((user_id) => ({
+    user_id,
+    sprint_id: sprintId,
+    daily_id: dailyId,
+    delta_time_predict: 1 + Math.floor(Math.random() * 5),
+    reestimativa_ativa: juniorScore(),
+    estabilidade_throughput: juniorScore(),
+    sinalizacao_bloqueios: juniorScore(),
+    qualidade_cards_dor: juniorScore(),
+    aderencia_entregas_dod: juniorScore(),
+  }));
+
+  const contribuicaoPayload = userIds.map((user_id) => ({
+    user_id,
+    sprint_id: sprintId,
+    daily_id: dailyId,
+    ajudas_prestadas: juniorScore(),
+    sinalizacao_risco_tecnico_integracao: juniorScore(),
+    compartilhamento_solucoes: juniorScore(),
+    participacao_feedbacks: juniorScore(),
+  }));
+
+  await prisma.capacidadeCognitivaAplicada.createMany({ data: capacidadePayload });
+  await prisma.comunicacaoOperacional.createMany({ data: comunicacaoPayload });
+  await prisma.execucaoConfiavel.createMany({ data: execucaoPayload });
+  await prisma.contribuicaoSistemica.createMany({ data: contribuicaoPayload });
+}
+
 async function createProject(params: {
-  name: string;
-  status: string;
+  blueprint: ProjectBlueprint;
   mentorId: string;
   clientId: string;
+  rhId?: string | null;
   studentIds: string[];
-  sprintComputedUntil: number;
   statsMap: Map<string, StatsAccumulator>;
 }) {
+  const { blueprint, mentorId, clientId, rhId, studentIds, statsMap } = params;
+  if (studentIds.length < STUDENTS_PER_PROJECT) {
+    throw new Error("Quantidade insuficiente de devs para o projeto");
+  }
+  const projectStart = new Date(BASE_YEAR, blueprint.startMonth, 1);
+  const projectEnd = addMonths(projectStart, blueprint.durationMonths);
+
   const project = await prisma.projetos.create({
     data: {
-      nome: params.name,
-      valor: 5000 + Math.floor(Math.random() * 2000),
-      status: params.status,
-      id_mentor: params.mentorId,
-      id_cliente: params.clientId,
+      nome: blueprint.name,
+      valor: 4000 + Math.floor(Math.random() * 2000),
+      status: blueprint.status,
+      id_mentor: mentorId,
+      id_cliente: clientId,
       id_helper: null,
-      repositorio: "apogeu/backend",
+      id_rh: rhId ?? null,
+      repositorio: `apogeu/${blueprint.name.toLowerCase().replace(/[^a-z]+/g, "-")}`,
       owner: "apogeu",
       token: null,
-      dia_inicio: new Date("2024-01-01"),
-      dia_fim: params.status === "Finalizado" ? new Date("2024-06-30") : new Date("2024-12-31"),
+      dia_inicio: projectStart,
+      dia_fim: projectEnd,
       logo_url: "https://cdn.apogeu.dev/logo.png",
-      id_rh: null,
     },
   });
 
   await prisma.devsProjetos.createMany({
-    data: params.studentIds.map((studentId) => ({
-      projeto_id: project.id,
-      dev_id: studentId,
-    })),
+    data: studentIds.map((dev_id) => ({ projeto_id: project.id, dev_id })),
   });
 
-  for (let sprintNumber = 1; sprintNumber <= SPRINTS_PER_PROJECT; sprintNumber++) {
+  for (let sprintNumber = 1; sprintNumber <= blueprint.sprintCount; sprintNumber++) {
+    const sprintStart = addMonths(projectStart, sprintNumber - 1);
+    const sprintEnd = addDays(sprintStart, 13);
     const sprint = await prisma.sprints.create({
       data: {
         id_projeto: project.id,
         numero: sprintNumber,
-        objetivo: `${SEED_LABEL} Sprint ${sprintNumber} - ${params.name}`,
-        computed: sprintNumber <= params.sprintComputedUntil,
-        dia_inicio: new Date(2024, sprintNumber, 1),
-        dia_fim: new Date(2024, sprintNumber, 20),
+        objetivo: `Sprint ${sprintNumber} - ${blueprint.name}`,
+        computed: sprintNumber <= blueprint.computedSprints,
+        dia_inicio: sprintStart,
+        dia_fim: sprintEnd,
       },
     });
 
-    const cardsPayload = Array.from({ length: CARDS_PER_SPRINT }).map((_, idx) => {
-      const card = buildCardData({
-        sprintId: sprint.id,
-        projectId: project.id,
-        assigned: pickRandom(params.studentIds),
-        order: idx + 1,
-        completed: sprintNumber <= params.sprintComputedUntil,
-      });
-      applyCardToStats(card, params.statsMap);
-      return card;
+    const daily = await prisma.daily.create({
+      data: {
+        projeto_id: project.id,
+        sprint_id: sprint.id,
+        conteudo: `Sincronização diária da sprint ${sprintNumber}`,
+        criado_em: addDays(sprintStart, 2),
+      },
     });
 
-    await prisma.cards.createMany({ data: cardsPayload });
+    await prisma.dailyDevPresence.createMany({
+      data: studentIds.map((dev_id) => ({
+        daily_id: daily.id,
+        dev_id,
+        presente: Math.random() > 0.15,
+      })),
+    });
+
+    await createIndicatorsForDaily({
+      sprintId: sprint.id,
+      dailyId: daily.id,
+      userIds: studentIds,
+    });
+
+    for (let cardIndex = 0; cardIndex < CARDS_PER_SPRINT; cardIndex++) {
+      const assigned = studentIds[(cardIndex + sprintNumber) % studentIds.length];
+      const completed = sprintNumber <= blueprint.computedSprints;
+      const finalStatus = completed
+        ? pickRandom([Status.Done, Status.CanMine])
+        : pickRandom([Status.ToDo, Status.Doing, Status.Prevented]);
+      const cardData = buildCardData({
+        sprintId: sprint.id,
+        projectId: project.id,
+        assigned,
+        order: cardIndex + 1,
+        completed: finalStatus === Status.Done,
+        finalStatus,
+        createdAt: addDays(sprintStart, 1 + (cardIndex % 6)),
+      });
+
+      const createdCard = await prisma.cards.create({ data: cardData });
+      applyCardToStats(cardData, statsMap);
+
+      const progressionRecords = buildProgressionRecords({
+        cardId: createdCard.id,
+        projectId: project.id,
+        sprintId: sprint.id,
+        finalStatus,
+        sprintStart,
+      });
+
+      if (progressionRecords.length) {
+        await prisma.cardProgression.createMany({ data: progressionRecords });
+      }
+    }
   }
 }
 
@@ -313,48 +534,34 @@ async function main() {
   await resetSeedData();
   const statsAccumulator = new Map<string, StatsAccumulator>();
 
-  const mentors = await provisionRoleUsers("Mentor", COMPLETED_PROJECTS + 1);
-  const clients = await provisionRoleUsers("Cliente", COMPLETED_PROJECTS + 1);
-  const students = await provisionRoleUsers(
+  const mentors = await provisionRoleUsers("Mentor", PROJECT_BLUEPRINTS.length);
+  const clients = await provisionRoleUsers("Cliente", PROJECT_BLUEPRINTS.length);
+  const rhs = await provisionRoleUsers("RH", Math.max(1, Math.ceil(PROJECT_BLUEPRINTS.length / 2)));
+  const devs = await provisionRoleUsers(
     "Dev",
-    (COMPLETED_PROJECTS + 1) * STUDENTS_PER_PROJECT
+    PROJECT_BLUEPRINTS.length * STUDENTS_PER_PROJECT
   );
 
-  await upsertLocalUsers([...mentors, ...clients, ...students]);
+  await upsertLocalUsers([...mentors, ...clients, ...rhs, ...devs]);
 
-  let studentCursor = 0;
-  for (let i = 0; i < COMPLETED_PROJECTS; i++) {
-    const projectStudents = students.slice(
-      studentCursor,
-      studentCursor + STUDENTS_PER_PROJECT
-    );
-    studentCursor += STUDENTS_PER_PROJECT;
+  let devCursor = 0;
+  for (let i = 0; i < PROJECT_BLUEPRINTS.length; i++) {
+    const blueprint = PROJECT_BLUEPRINTS[i];
+    const mentor = mentors[i % mentors.length];
+    const client = clients[i % clients.length];
+    const rh = rhs.length ? rhs[i % rhs.length] : undefined;
+    const devSlice = devs.slice(devCursor, devCursor + STUDENTS_PER_PROJECT);
+    devCursor += STUDENTS_PER_PROJECT;
 
     await createProject({
-      name: `${SEED_LABEL} Projeto Finalizado ${i + 1}`,
-      status: "Finalizado",
-      mentorId: mentors[i].id,
-      clientId: clients[i].id,
-      studentIds: projectStudents.map((s) => s.id),
-      sprintComputedUntil: SPRINTS_PER_PROJECT,
+      blueprint,
+      mentorId: mentor.id,
+      clientId: client.id,
+      rhId: rh?.id ?? null,
+      studentIds: devSlice.map((dev) => dev.id),
       statsMap: statsAccumulator,
     });
   }
-
-  const activeStudents = students.slice(
-    studentCursor,
-    studentCursor + STUDENTS_PER_PROJECT
-  );
-
-  await createProject({
-    name: `${SEED_LABEL} Projeto Em Andamento`,
-    status: "Em andamento",
-    mentorId: mentors[mentors.length - 1].id,
-    clientId: clients[clients.length - 1].id,
-    studentIds: activeStudents.map((s) => s.id),
-    sprintComputedUntil: 4,
-    statsMap: statsAccumulator,
-  });
 
   await persistUserStatistics(statsAccumulator);
 }

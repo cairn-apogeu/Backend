@@ -1,11 +1,15 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-import dailyService from "./daily.service";
-import { DailyDto, DailySchema, DailyUpdateSchema } from "./schemas/daily.schema";
+import progressionService from "./cardProgression.service";
+import {
+  CardProgressionDto,
+  CardProgressionSchema,
+  CardProgressionUpdateSchema,
+} from "./schemas/cardProgression.schema";
 
-class DailyController {
+class CardProgressionController {
   async findAll(_request: FastifyRequest, reply: FastifyReply) {
     try {
-      const records = await dailyService.findAll();
+      const records = await progressionService.findAll();
       reply.send(records);
     } catch (error) {
       reply.status(500).send({ message: "Falha ao listar registros", error });
@@ -21,7 +25,7 @@ class DailyController {
       if (Number.isNaN(id)) {
         return reply.status(400).send({ message: "ID inválido" });
       }
-      const record = await dailyService.findById(id);
+      const record = await progressionService.findById(id);
       if (!record) {
         return reply.status(404).send({ message: "Registro não encontrado" });
       }
@@ -31,46 +35,29 @@ class DailyController {
     }
   }
 
-  async findByProjeto(
-    request: FastifyRequest<{ Params: { projetoId: string } }>,
+  async findByCard(
+    request: FastifyRequest<{ Params: { cardId: string } }>,
     reply: FastifyReply
   ) {
     try {
-      const projetoId = Number(request.params.projetoId);
-      if (Number.isNaN(projetoId)) {
-        return reply.status(400).send({ message: "ID de projeto inválido" });
+      const cardId = Number(request.params.cardId);
+      if (Number.isNaN(cardId)) {
+        return reply.status(400).send({ message: "ID de card inválido" });
       }
-      const records = await dailyService.findByProjeto(projetoId);
+      const records = await progressionService.findByCard(cardId);
       reply.send(records);
     } catch (error) {
-      reply.status(500).send({ message: "Falha ao listar por projeto", error });
-    }
-  }
-
-  async findBySprint(
-    request: FastifyRequest<{ Params: { sprintId: string } }>,
-    reply: FastifyReply
-  ) {
-    try {
-      const sprintId = Number(request.params.sprintId);
-      if (Number.isNaN(sprintId)) {
-        return reply.status(400).send({ message: "ID de sprint inválido" });
-      }
-      const records = await dailyService.findBySprint(sprintId);
-      reply.send(records);
-    } catch (error) {
-      reply.status(500).send({ message: "Falha ao listar por sprint", error });
+      reply.status(500).send({ message: "Falha ao listar histórico do card", error });
     }
   }
 
   async create(
-    request: FastifyRequest<{ Body: DailyDto }>,
+    request: FastifyRequest<{ Body: CardProgressionDto }>,
     reply: FastifyReply
   ) {
     try {
-      const payload = DailySchema.parse(request.body);
-      const record = await dailyService.create(payload);
-      console.log(record);
+      const payload = CardProgressionSchema.parse(request.body);
+      const record = await progressionService.create(payload);
       reply.code(201).send(record);
     } catch (error) {
       reply.status(400).send({ message: "Dados inválidos", error });
@@ -78,7 +65,10 @@ class DailyController {
   }
 
   async update(
-    request: FastifyRequest<{ Params: { id: string }; Body: Partial<DailyDto> }>,
+    request: FastifyRequest<{
+      Params: { id: string };
+      Body: Partial<CardProgressionDto>;
+    }>,
     reply: FastifyReply
   ) {
     try {
@@ -86,8 +76,8 @@ class DailyController {
       if (Number.isNaN(id)) {
         return reply.status(400).send({ message: "ID inválido" });
       }
-      const payload = DailyUpdateSchema.parse(request.body);
-      const record = await dailyService.update(id, payload);
+      const payload = CardProgressionUpdateSchema.parse(request.body);
+      const record = await progressionService.update(id, payload);
       reply.send(record);
     } catch (error: any) {
       if (error?.code === "P2025") {
@@ -106,7 +96,7 @@ class DailyController {
       if (Number.isNaN(id)) {
         return reply.status(400).send({ message: "ID inválido" });
       }
-      await dailyService.delete(id);
+      await progressionService.delete(id);
       reply.status(204).send();
     } catch (error: any) {
       if (error?.code === "P2025") {
@@ -117,4 +107,4 @@ class DailyController {
   }
 }
 
-export default new DailyController();
+export default new CardProgressionController();

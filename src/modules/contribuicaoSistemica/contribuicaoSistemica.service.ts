@@ -13,6 +13,24 @@ class ContribuicaoSistemicaService {
     return prisma.contribuicaoSistemica.findUnique({ where: { id } });
   }
 
+  async findBySprint(sprintId: number) {
+    return prisma.contribuicaoSistemica.findMany({
+      where: { sprint_id: sprintId },
+    });
+  }
+
+  async findByProject(projectId: number) {
+    return prisma.contribuicaoSistemica.findMany({
+      where: { sprint: { id_projeto: projectId } },
+    });
+  }
+
+  async findByUser(userId: string) {
+    return prisma.contribuicaoSistemica.findMany({
+      where: { user_id: userId },
+    });
+  }
+
   async create(data: ContribuicaoSistemicaDto) {
     return prisma.contribuicaoSistemica.create({ data });
   }

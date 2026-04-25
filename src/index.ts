@@ -16,6 +16,7 @@ import comunicacaoOperacionalRoutes from "./modules/comunicacaoOperacional/comun
 import execucaoConfiavelRoutes from "./modules/execucaoConfiavel/execucaoConfiavel.routes";
 import contribuicaoSistemicaRoutes from "./modules/contribuicaoSistemica/contribuicaoSistemica.routes";
 import dailyRoutes from "./modules/daily/daily.routes";
+import cardProgressionRoutes from "./modules/cardProgression/cardProgression.routes";
 
 const PORT = parseInt(process.env.PORT || "3333", 10);
 const SWAGGER_SERVER_URL =
@@ -212,6 +213,7 @@ app.register(comunicacaoOperacionalRoutes); // Rotas para comunicação operacio
 app.register(execucaoConfiavelRoutes); // Rotas para execução confiável
 app.register(contribuicaoSistemicaRoutes); // Rotas para contribuição sistêmica
 app.register(dailyRoutes); // Rotas para daily
+app.register(cardProgressionRoutes); // Rotas para histórico de cards
 
 // Inicialização do servidor
 const start = async () => {

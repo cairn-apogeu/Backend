@@ -13,6 +13,24 @@ class CapacidadeCognitivaAplicadaService {
     return prisma.capacidadeCognitivaAplicada.findUnique({ where: { id } });
   }
 
+  async findBySprint(sprintId: number) {
+    return prisma.capacidadeCognitivaAplicada.findMany({
+      where: { sprint_id: sprintId },
+    });
+  }
+
+  async findByProject(projectId: number) {
+    return prisma.capacidadeCognitivaAplicada.findMany({
+      where: { sprint: { id_projeto: projectId } },
+    });
+  }
+
+  async findByUser(userId: string) {
+    return prisma.capacidadeCognitivaAplicada.findMany({
+      where: { user_id: userId },
+    });
+  }
+
   async create(data: CapacidadeCognitivaAplicadaDto) {
     return prisma.capacidadeCognitivaAplicada.create({ data });
   }

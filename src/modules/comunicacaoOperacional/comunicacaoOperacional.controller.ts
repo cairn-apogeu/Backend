@@ -40,6 +40,60 @@ class ComunicacaoOperacionalController {
     }
   }
 
+  async findBySprint(
+    request: FastifyRequest<{ Params: { sprintId: string } }>,
+    reply: FastifyReply
+  ) {
+    const sprintId = Number(request.params.sprintId);
+    if (Number.isNaN(sprintId)) {
+      return reply.status(400).send({ message: "ID da sprint inválido" });
+    }
+    try {
+      const records = await comunicacaoService.findBySprint(sprintId);
+      reply.send(records);
+    } catch (error) {
+      reply
+        .status(500)
+        .send({ message: "Falha ao listar registros da sprint", error });
+    }
+  }
+
+  async findByProject(
+    request: FastifyRequest<{ Params: { projectId: string } }>,
+    reply: FastifyReply
+  ) {
+    const projectId = Number(request.params.projectId);
+    if (Number.isNaN(projectId)) {
+      return reply.status(400).send({ message: "ID do projeto inválido" });
+    }
+    try {
+      const records = await comunicacaoService.findByProject(projectId);
+      reply.send(records);
+    } catch (error) {
+      reply
+        .status(500)
+        .send({ message: "Falha ao listar registros do projeto", error });
+    }
+  }
+
+  async findByUser(
+    request: FastifyRequest<{ Params: { userId: string } }>,
+    reply: FastifyReply
+  ) {
+    const { userId } = request.params;
+    if (!userId) {
+      return reply.status(400).send({ message: "ID do usuário é obrigatório" });
+    }
+    try {
+      const records = await comunicacaoService.findByUser(userId);
+      reply.send(records);
+    } catch (error) {
+      reply
+        .status(500)
+        .send({ message: "Falha ao listar registros do usuário", error });
+    }
+  }
+
   async create(
     request: FastifyRequest<{ Body: ComunicacaoOperacionalDto }>,
     reply: FastifyReply

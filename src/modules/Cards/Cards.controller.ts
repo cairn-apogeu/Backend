@@ -139,6 +139,43 @@ class CardsController {
     }
   }
 
+  async statusTimelineByProject(
+    request: FastifyRequest<{ Params: { projectId: string } }>,
+    reply: FastifyReply
+  ) {
+    const projectId = Number(request.params.projectId);
+    if (Number.isNaN(projectId)) {
+      return reply
+        .status(400)
+        .send({ message: "Parâmetro projectId deve ser um número válido." });
+    }
+
+    try {
+      const timeline = await cardsService.getStatusTimelineByProject(projectId);
+      reply.send(timeline);
+    } catch (error) {
+      reply.status(500).send({ message: "Falha ao gerar timeline", error });
+    }
+  }
+
+  async statusTimelineBySprint(
+    request: FastifyRequest<{ Params: { sprintId: string } }>,
+    reply: FastifyReply
+  ) {
+    const sprintId = Number(request.params.sprintId);
+    if (Number.isNaN(sprintId)) {
+      return reply
+        .status(400)
+        .send({ message: "Parâmetro sprintId deve ser um número válido." });
+    }
+
+    try {
+      const timeline = await cardsService.getStatusTimelineBySprint(sprintId);
+      reply.send(timeline);
+    } catch (error) {
+      reply.status(500).send({ message: "Falha ao gerar timeline da sprint", error });
+    }
+  }
 }
 
 export default new CardsController();
