@@ -35,7 +35,9 @@ class SprintService {
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
         projeto.id_rh === userId ||
-        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
+        projeto.DevsProjetos.some(
+          (ap: (typeof projeto.DevsProjetos)[number]) => ap.dev_id === userId
+        )
       ) {
         return sprint;
       }
@@ -98,7 +100,9 @@ class SprintService {
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
         projeto.id_rh === userId ||
-        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
+        projeto.DevsProjetos.some(
+          (ap: (typeof projeto.DevsProjetos)[number]) => ap.dev_id === userId
+        )
       ) {
         return await prisma.sprints.findMany({ where: { id_projeto } });
       }

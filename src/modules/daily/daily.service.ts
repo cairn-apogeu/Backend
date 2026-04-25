@@ -5,6 +5,12 @@ const includeRelations = {
   presencasDev: true,
 };
 
+type TransactionClient = Parameters<typeof prisma.$transaction>[0] extends (
+  tx: infer T
+) => unknown
+  ? T
+  : never;
+
 class DailyService {
   async findAll() {
     return prisma.daily.findMany({ include: includeRelations });
@@ -31,7 +37,7 @@ class DailyService {
   async create(data: DailyDto) {
     const { presencas = [], ...dailyData } = data;
 
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: TransactionClient) => {
       const daily = await tx.daily.create({ data: dailyData });
 
       if (presencas.length > 0) {
@@ -54,7 +60,7 @@ class DailyService {
   async update(id: number, data: DailyUpdateDto) {
     const { presencas, ...dailyData } = data;
 
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: TransactionClient) => {
       const updated = await tx.daily.update({
         where: { id },
         data: dailyData,
@@ -81,7 +87,7 @@ class DailyService {
   }
 
   async delete(id: number) {
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: TransactionClient) => {
       await tx.dailyDevPresence.deleteMany({ where: { daily_id: id } });
       return tx.daily.delete({ where: { id } });
     });

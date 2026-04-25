@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import prisma from "../../clients/prisma.client";
 import { ToUserDto } from "./schemas/to-user.schema";
 import { UpdateUserDto } from "./schemas/update-user.schema";
@@ -63,7 +62,7 @@ class UserService {
   async newUser(toUserDto: ToUserDto) {
     try {
       const { tipo_perfil, ...rest } = toUserDto;
-      const data: Prisma.UsersUncheckedCreateInput = {
+      const data = {
         ...rest,
         tipo_perfil: this.normalizeTipoPerfil(tipo_perfil),
       };
@@ -77,7 +76,7 @@ class UserService {
   async updateUser(id: string, toUserDto: Partial<ToUserDto>) {
     try {
       const { tipo_perfil, ...rest } = toUserDto;
-      const data: Prisma.UsersUncheckedUpdateInput = {
+      const data = {
         ...rest,
         ...(tipo_perfil
           ? { tipo_perfil: this.normalizeTipoPerfil(tipo_perfil) }
