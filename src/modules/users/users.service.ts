@@ -44,7 +44,7 @@ class UserService {
         throw new Error("Nenhum dev encontrado para este projeto");
       }
   
-      return devsProjetos.map((ap) => ap.dev); // Retorna apenas os detalhes dos devs
+      return devsProjetos.map((ap: (typeof devsProjetos)[number]) => ap.dev); // Retorna apenas os detalhes dos devs
     } catch (error) {
       throw new Error( "Erro ao buscar devs do projeto");
     }

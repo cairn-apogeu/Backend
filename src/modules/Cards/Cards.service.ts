@@ -46,7 +46,9 @@ class CardsService {
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
         projeto.id_rh === userId ||
-        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
+        projeto.DevsProjetos.some(
+          (ap: (typeof projeto.DevsProjetos)[number]) => ap.dev_id === userId
+        )
       ) {
         return card;
       }
@@ -223,7 +225,9 @@ class CardsService {
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
         projeto.id_rh === userId ||
-        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
+        projeto.DevsProjetos.some(
+          (ap: (typeof projeto.DevsProjetos)[number]) => ap.dev_id === userId
+        )
       ) {
         return await prisma.cards.findMany({ where: { sprint: sprintId } });
       }
@@ -249,7 +253,9 @@ class CardsService {
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
         projeto.id_rh === userId ||
-        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
+        projeto.DevsProjetos.some(
+          (ap: (typeof projeto.DevsProjetos)[number]) => ap.dev_id === userId
+        )
       ) {
         return await prisma.cards.findMany({ where: { projeto: projectId } });
       }
@@ -593,7 +599,7 @@ class CardsService {
       };
     }
 
-    const cardIds = cards.map((card) => card.id);
+    const cardIds = cards.map((card: (typeof cards)[number]) => card.id);
 
     const progressions = await prisma.cardProgression.findMany({
       where: {
@@ -652,7 +658,7 @@ class CardsService {
       };
     }
 
-    const cardIds = cards.map((card) => card.id);
+    const cardIds = cards.map((card: (typeof cards)[number]) => card.id);
 
     const progressions = await prisma.cardProgression.findMany({
       where: {

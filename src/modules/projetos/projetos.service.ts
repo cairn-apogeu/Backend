@@ -58,7 +58,9 @@ class ProjetoService {
         projeto.id_mentor === userId ||
         projeto.id_helper === userId ||
         projeto.id_rh === userId ||
-        projeto.DevsProjetos.some((ap) => ap.dev_id === userId)
+        projeto.DevsProjetos.some(
+          (ap: (typeof projeto.DevsProjetos)[number]) => ap.dev_id === userId
+        )
       ) {
         return projeto;
       }
@@ -89,7 +91,9 @@ class ProjetoService {
       });
 
       // Extrai os projetos do array de devsProjetos
-      const projetosDevList = projetosDev.map((devProjeto) => devProjeto.projeto);
+      const projetosDevList = projetosDev.map(
+        (devProjeto: (typeof projetosDev)[number]) => devProjeto.projeto
+      );
 
       // Junta todos os projetos e remove duplicatas por id
       const todosProjetos = [...projetosDevList, ...projetosClienteGestor];
@@ -280,7 +284,11 @@ class ProjetoService {
       return true;
     }
     // Verifica se o usuário está listado como dev
-    if (projeto.DevsProjetos.some((ap) => ap.dev_id === userId)) {
+    if (
+      projeto.DevsProjetos.some(
+        (ap: (typeof projeto.DevsProjetos)[number]) => ap.dev_id === userId
+      )
+    ) {
       return true;
     }
     return false;
