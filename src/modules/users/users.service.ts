@@ -1,7 +1,17 @@
-import { Prisma, TipoPerfil } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import prisma from "../../clients/prisma.client";
 import { ToUserDto } from "./schemas/to-user.schema";
 import { UpdateUserDto } from "./schemas/update-user.schema";
+
+const TIPO_PERFIL = {
+  Mentor: "Mentor",
+  Cliente: "Cliente",
+  Dev: "Dev",
+  Admin: "Admin",
+  RH: "RH",
+} as const;
+
+type TipoPerfilValue = (typeof TIPO_PERFIL)[keyof typeof TIPO_PERFIL];
 
 class UserService {
   async findAll() {
@@ -92,22 +102,22 @@ class UserService {
     }
   }
 
-  private normalizeTipoPerfil(value?: string): TipoPerfil {
+  private normalizeTipoPerfil(value?: string): TipoPerfilValue {
     if (!value) {
       throw new Error("tipo_perfil é obrigatório");
     }
     const normalized = value.trim().toLowerCase();
     switch (normalized) {
       case "mentor":
-        return TipoPerfil.Mentor;
+        return TIPO_PERFIL.Mentor;
       case "cliente":
-        return TipoPerfil.Cliente;
+        return TIPO_PERFIL.Cliente;
       case "dev":
-        return TipoPerfil.Dev;
+        return TIPO_PERFIL.Dev;
       case "admin":
-        return TipoPerfil.Admin;
+        return TIPO_PERFIL.Admin;
       case "rh":
-        return TipoPerfil.RH;
+        return TIPO_PERFIL.RH;
       default:
         throw new Error(`tipo_perfil inválido: ${value}`);
     }
