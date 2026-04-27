@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import { clerkClient, clerkPlugin, getAuth } from "@clerk/fastify";
+import { spawn } from "node:child_process";
 
 // Importa rotas modulares
 import projetoRoutes from "./modules/projetos/projetos.routes";
@@ -24,6 +25,10 @@ const SWAGGER_SERVER_URL =
 
 const app = Fastify({ logger: true });
 app.register(clerkPlugin);
+
+const PUBLIC_SEED_PATH = "/seed/run";
+const MAX_COMMAND_OUTPUT_LENGTH = 5_000;
+let isSeedRunning = false;
 
 // Configuração do CORS
 app.register(cors, {
@@ -160,15 +165,62 @@ const swaggerUiHtml = `<!DOCTYPE html>
 
 // Configuração do Clerk
 
-const PUBLIC_DOC_PATHS = [/^\/docs(?:\/|$)/, /^\/documentation(?:\/|$)/];
+const PUBLIC_PATHS = [
+  /^\/docs(?:\/|$)/,
+  /^\/documentation(?:\/|$)/,
+  /^\/seed\/run(?:\/|$)/,
+];
+
+type CommandResult = {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+};
+
+function clipOutput(output: string) {
+  if (output.length <= MAX_COMMAND_OUTPUT_LENGTH) {
+    return output;
+  }
+  return `${output.slice(-MAX_COMMAND_OUTPUT_LENGTH)}\n[output truncated]`;
+}
+
+function runCommand(command: string, args: string[]) {
+  return new Promise<CommandResult>((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: process.cwd(),
+      env: process.env,
+      shell: process.platform === "win32",
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk: Buffer | string) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on("data", (chunk: Buffer | string) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("error", (error) => {
+      reject(error);
+    });
+
+    child.on("close", (exitCode) => {
+      resolve({ exitCode, stdout, stderr });
+    });
+  });
+}
 
 // Hook global para proteger todas as rotas
 app.addHook("preHandler", async (request, reply) => {
   try {
-    const isPublicDoc = PUBLIC_DOC_PATHS.some((pattern) =>
-      pattern.test(request.url)
+    const requestPath = request.url.split("?")[0];
+    const isPublicPath = PUBLIC_PATHS.some((pattern) =>
+      pattern.test(requestPath)
     );
-    if (isPublicDoc) {
+    if (isPublicPath) {
       return;
     }
 
@@ -184,6 +236,42 @@ app.addHook("preHandler", async (request, reply) => {
   } catch (error) {
     app.log.error(error);
     return reply.code(500).send({ error: "Failed to retrieve user" });
+  }
+});
+
+app.post(PUBLIC_SEED_PATH, { schema: { tags: ["Seed"], security: [] } }, async (_request, reply) => {
+  if (isSeedRunning) {
+    return reply.code(409).send({
+      message: "Seed já está em execução.",
+    });
+  }
+
+  isSeedRunning = true;
+
+  try {
+    const result = await runCommand("npm", ["run", "seed"]);
+
+    if (result.exitCode !== 0) {
+      return reply.code(500).send({
+        message: "Falha ao executar seed.",
+        exitCode: result.exitCode,
+        stderr: clipOutput(result.stderr),
+        stdout: clipOutput(result.stdout),
+      });
+    }
+
+    return reply.send({
+      message: "Seed executado com sucesso.",
+      stdout: clipOutput(result.stdout),
+    });
+  } catch (error) {
+    app.log.error(error);
+    return reply.code(500).send({
+      message: "Erro ao iniciar comando de seed.",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  } finally {
+    isSeedRunning = false;
   }
 });
 
