@@ -249,25 +249,37 @@ app.post(PUBLIC_SEED_PATH, { schema: { tags: ["Seed"], security: [] } }, async (
   isSeedRunning = true;
 
   try {
-    const result = await runCommand("npm", ["run", "seed"]);
+    const migrateResult = await runCommand("npx", ["prisma", "migrate", "deploy"]);
 
-    if (result.exitCode !== 0) {
+    if (migrateResult.exitCode !== 0) {
       return reply.code(500).send({
-        message: "Falha ao executar seed.",
-        exitCode: result.exitCode,
-        stderr: clipOutput(result.stderr),
-        stdout: clipOutput(result.stdout),
+        message: "Falha ao executar migrations.",
+        exitCode: migrateResult.exitCode,
+        stderr: clipOutput(migrateResult.stderr),
+        stdout: clipOutput(migrateResult.stdout),
+      });
+    }
+
+    const seedResult = await runCommand("npm", ["run", "seed"]);
+
+    if (seedResult.exitCode !== 0) {
+      return reply.code(500).send({
+        message: "Migrations aplicadas, mas falha ao executar seed.",
+        exitCode: seedResult.exitCode,
+        stderr: clipOutput(seedResult.stderr),
+        stdout: clipOutput(seedResult.stdout),
       });
     }
 
     return reply.send({
-      message: "Seed executado com sucesso.",
-      stdout: clipOutput(result.stdout),
+      message: "Migrations e seed executados com sucesso.",
+      migrationStdout: clipOutput(migrateResult.stdout),
+      seedStdout: clipOutput(seedResult.stdout),
     });
   } catch (error) {
     app.log.error(error);
     return reply.code(500).send({
-      message: "Erro ao iniciar comando de seed.",
+      message: "Erro ao iniciar migrations/seed.",
       error: error instanceof Error ? error.message : "Unknown error",
     });
   } finally {
