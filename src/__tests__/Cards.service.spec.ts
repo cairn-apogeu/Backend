@@ -49,7 +49,7 @@ describe('Cards Service', () => {
     };
 
     const newCard = await CardsService.create(cardData);
-    const foundCard = await CardsService.findById(newCard.id);
+    const foundCard = await CardsService.findById(newCard.id, 'user123');
 
     expect(foundCard).toHaveProperty('id', newCard.id);
     expect(foundCard.titulo).toBe('Card para Buscar');
@@ -76,7 +76,7 @@ describe('Cards Service', () => {
     const newCard = await CardsService.create(cardData);
     await CardsService.delete(newCard.id);
 
-    await expect(CardsService.findById(newCard.id)).rejects.toThrow('Falha ao encontrar o card');
+    await expect(CardsService.findById(newCard.id, 'user123')).rejects.toThrow('Falha ao encontrar o card');
   });
 
   it('deve encontrar cards atribuídos a um usuário', async () => {
@@ -101,7 +101,7 @@ describe('Cards Service', () => {
     };
 
     await CardsService.create(cardData);
-    const cards = await CardsService.findBySprint(1);
+    const cards = await CardsService.findBySprint(1, 'user123');
 
     expect(cards.length).toBeGreaterThan(0);
     expect(cards[0].sprint).toBe(1);
