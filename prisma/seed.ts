@@ -83,6 +83,13 @@ const xpFields = [
 const MATURITY_GROWTH_FACTOR = 1.3;
 const MATURITY_VALIDATION_TOLERANCE = 1e-6;
 const GOOD_CASE_START_PATTERN = [3, 3, 3, 3, 4, 4] as const;
+const GOOD_CASE_TARGET_LAST_THROUGHPUT = 4032;
+const GOOD_CASE_THROUGHPUT_GROWTH = 1.3;
+const GOOD_CASE_GROWTH_TOLERANCE = 0.001;
+const GOOD_CASE_LAST_DELTA_NEAR_ZERO_MAX = 2;
+const GOOD_CASE_START_DELTA_RATIO = 0.18;
+const GOOD_CASE_END_DELTA_RATIO = 0.002;
+const GOOD_CASE_BLUEPRINT_NAME = `${SEED_LABEL} Portal do Cliente`;
 
 const capacidadeFields = [
   "reformulacao_problema",
@@ -151,6 +158,18 @@ type GoodCaseMaturityPlan = Record<
 type GoodCaseValidationTracker = {
   projectName: string;
   perFieldSprintAverages: Record<MaturityField, number[]>;
+  sprintThroughputTotals: number[];
+  sprintTempoDeltaAbsAverages: number[];
+};
+
+type GoodCaseThroughputPlan = {
+  throughputTargets: number[];
+  deltaRatios: number[];
+};
+
+type CardTimingOverride = {
+  tempo: number;
+  tempoEstimado: number;
 };
 
 const clerkSecret = process.env.CLERK_SECRET_KEY;
@@ -247,7 +266,95 @@ function createGoodCaseValidationTracker(projectName: string): GoodCaseValidatio
     perFieldSprintAverages: Object.fromEntries(
       maturityFields.map((field) => [field, []])
     ) as Record<MaturityField, number[]>,
+    sprintThroughputTotals: [],
+    sprintTempoDeltaAbsAverages: [],
   };
+}
+
+function createGoodCaseThroughputPlan(sprintCount: number): GoodCaseThroughputPlan {
+  if (sprintCount < 2) {
+    throw new Error("Good case requer ao menos 2 sprints para validação de evolução.");
+  }
+
+  const firstThroughput = Math.round(
+    GOOD_CASE_TARGET_LAST_THROUGHPUT / GOOD_CASE_THROUGHPUT_GROWTH
+  );
+
+  const throughputTargets = Array.from({ length: sprintCount }, (_, index) => {
+    if (index === 0) return firstThroughput;
+    if (index === sprintCount - 1) return GOOD_CASE_TARGET_LAST_THROUGHPUT;
+    const progress = index / (sprintCount - 1);
+    return Math.round(
+      firstThroughput +
+        (GOOD_CASE_TARGET_LAST_THROUGHPUT - firstThroughput) * progress
+    );
+  });
+
+  for (let i = 1; i < throughputTargets.length - 1; i++) {
+    throughputTargets[i] = Math.max(throughputTargets[i], throughputTargets[i - 1] + 1);
+  }
+
+  throughputTargets[throughputTargets.length - 1] = GOOD_CASE_TARGET_LAST_THROUGHPUT;
+
+  for (let i = throughputTargets.length - 2; i >= 0; i--) {
+    throughputTargets[i] = Math.min(throughputTargets[i], throughputTargets[i + 1] - 1);
+  }
+
+  const deltaRatios = Array.from({ length: sprintCount }, (_, index) => {
+    if (index === sprintCount - 1) return GOOD_CASE_END_DELTA_RATIO;
+    const progress = index / (sprintCount - 1);
+    return (
+      GOOD_CASE_START_DELTA_RATIO +
+      (GOOD_CASE_END_DELTA_RATIO - GOOD_CASE_START_DELTA_RATIO) * progress
+    );
+  });
+
+  return { throughputTargets, deltaRatios };
+}
+
+function createGoodCaseCardTimings(params: {
+  sprintNumber: number;
+  sprintCount: number;
+  cardCount: number;
+  throughputTarget: number;
+  deltaRatio: number;
+}): CardTimingOverride[] {
+  const { sprintNumber, sprintCount, cardCount, throughputTarget, deltaRatio } = params;
+  const base = Math.floor(throughputTarget / cardCount);
+  const offsetsTemplate = [-24, -16, -8, -4, 4, 8, 16, 24];
+  const offsets = Array.from({ length: cardCount }, (_, index) => {
+    return offsetsTemplate[(index + sprintNumber - 1) % offsetsTemplate.length] ?? 0;
+  });
+
+  const tempos = offsets.map((offset) => Math.max(1, base + offset));
+  let missing = throughputTarget - tempos.reduce((sum, value) => sum + value, 0);
+  let cursor = 0;
+
+  while (missing !== 0) {
+    const idx = (cursor + sprintNumber) % cardCount;
+    if (missing > 0) {
+      tempos[idx] += 1;
+      missing -= 1;
+    } else if (tempos[idx] > 1) {
+      tempos[idx] -= 1;
+      missing += 1;
+    }
+    cursor += 1;
+    if (cursor > 10_000) {
+      throw new Error("Falha ao distribuir throughput do good case.");
+    }
+  }
+
+  const deltaPattern = [1.12, 0.9, 1.05, 0.95, 1.0, 1.08, 0.92, 1.0];
+  return tempos.map((tempo, index) => {
+    const minDiff = sprintNumber === sprintCount ? 0 : 1;
+    const diff = Math.max(
+      minDiff,
+      Math.round(tempo * deltaRatio * (deltaPattern[index % deltaPattern.length] ?? 1))
+    );
+    const tempoEstimado = Math.max(1, tempo - diff);
+    return { tempo, tempoEstimado };
+  });
 }
 
 function computeGoodCaseAttributeValue(params: {
@@ -305,6 +412,76 @@ function validateGoodCaseMaturityTrend(params: {
         )}, última=${last.toFixed(4)}, esperado=${expected.toFixed(4)}`
       );
     }
+  }
+}
+
+function validateGoodCaseThroughputTrend(params: {
+  projectName: string;
+  sprintCount: number;
+  tracker: GoodCaseValidationTracker;
+}) {
+  const { projectName, sprintCount, tracker } = params;
+  const throughputs = tracker.sprintThroughputTotals;
+  const deltaAverages = tracker.sprintTempoDeltaAbsAverages;
+
+  if (throughputs.length !== sprintCount) {
+    throw new Error(
+      `[Good Case] ${projectName} inválido em throughput: esperado ${sprintCount} sprints, obtido ${throughputs.length}.`
+    );
+  }
+
+  if (deltaAverages.length !== sprintCount) {
+    throw new Error(
+      `[Good Case] ${projectName} inválido em delta médio: esperado ${sprintCount} sprints, obtido ${deltaAverages.length}.`
+    );
+  }
+
+  for (let i = 1; i < throughputs.length; i++) {
+    if (throughputs[i] <= throughputs[i - 1]) {
+      throw new Error(
+        `[Good Case] ${projectName} sem crescimento de throughput: sprint ${
+          i
+        }=${throughputs[i - 1]} -> sprint ${i + 1}=${throughputs[i]}`
+      );
+    }
+  }
+
+  const firstThroughput = throughputs[0];
+  const lastThroughput = throughputs[throughputs.length - 1];
+  if (lastThroughput !== GOOD_CASE_TARGET_LAST_THROUGHPUT) {
+    throw new Error(
+      `[Good Case] ${projectName} com throughput final inválido: esperado ${GOOD_CASE_TARGET_LAST_THROUGHPUT}, obtido ${lastThroughput}.`
+    );
+  }
+
+  const growthRatio = lastThroughput / firstThroughput;
+  if (Math.abs(growthRatio - GOOD_CASE_THROUGHPUT_GROWTH) > GOOD_CASE_GROWTH_TOLERANCE) {
+    throw new Error(
+      `[Good Case] ${projectName} sem crescimento ~30% no throughput: primeira=${firstThroughput}, última=${lastThroughput}, razão=${growthRatio.toFixed(
+        6
+      )}`
+    );
+  }
+
+  for (let i = 1; i < deltaAverages.length; i++) {
+    if (deltaAverages[i] > deltaAverages[i - 1] + MATURITY_VALIDATION_TOLERANCE) {
+      throw new Error(
+        `[Good Case] ${projectName} sem redução de |tempo-tempo_estimado|: sprint ${
+          i
+        }=${deltaAverages[i - 1].toFixed(4)} -> sprint ${i + 1}=${deltaAverages[
+          i
+        ].toFixed(4)}`
+      );
+    }
+  }
+
+  const lastDelta = deltaAverages[deltaAverages.length - 1];
+  if (lastDelta > GOOD_CASE_LAST_DELTA_NEAR_ZERO_MAX) {
+    throw new Error(
+      `[Good Case] ${projectName} com delta final acima do limite: ${
+        lastDelta.toFixed(4)
+      } > ${GOOD_CASE_LAST_DELTA_NEAR_ZERO_MAX}`
+    );
   }
 }
 
@@ -405,12 +582,15 @@ function buildCardData(options: {
   completed: boolean;
   finalStatus: Status;
   createdAt: Date;
+  timingOverride?: CardTimingOverride;
 }): CardCreateInput {
   const estimatedHours = 1.5 + Math.random() * 2.5; // 1.5h até ~4h
-  const tempoEstimado = Math.round(estimatedHours * 60); // minutos
-  const tempoReal = Math.round(
+  const defaultTempoEstimado = Math.round(estimatedHours * 60); // minutos
+  const defaultTempoReal = Math.round(
     realisticTempo(estimatedHours, options.completed) * 60
   );
+  const tempoEstimado = options.timingOverride?.tempoEstimado ?? defaultTempoEstimado;
+  const tempoReal = options.timingOverride?.tempo ?? defaultTempoReal;
   const difficulty = pickRandom(difficultyPool);
   const xpFlags = {
     xp_frontend: Math.random() > 0.65,
@@ -686,6 +866,10 @@ async function createProject(params: {
     maturityTrendMode === "good_case_30pct"
       ? createGoodCaseMaturityPlan(studentIds)
       : undefined;
+  const goodCaseThroughputPlan =
+    maturityTrendMode === "good_case_30pct"
+      ? createGoodCaseThroughputPlan(blueprint.sprintCount)
+      : undefined;
   const goodCaseTracker =
     maturityTrendMode === "good_case_30pct"
       ? createGoodCaseValidationTracker(blueprint.name)
@@ -755,24 +939,59 @@ async function createProject(params: {
       goodCaseTracker,
     });
 
+    let goodCaseCardTimings: CardTimingOverride[] | undefined;
+    if (maturityTrendMode === "good_case_30pct" && goodCaseThroughputPlan) {
+      const throughputTarget =
+        goodCaseThroughputPlan.throughputTargets[sprintNumber - 1];
+      const deltaRatio = goodCaseThroughputPlan.deltaRatios[sprintNumber - 1];
+
+      if (throughputTarget == null || deltaRatio == null) {
+        throw new Error(
+          `Plano de throughput incompleto para sprint ${sprintNumber} em ${blueprint.name}.`
+        );
+      }
+
+      goodCaseCardTimings = createGoodCaseCardTimings({
+        sprintNumber,
+        sprintCount: blueprint.sprintCount,
+        cardCount: CARDS_PER_SPRINT,
+        throughputTarget,
+        deltaRatio,
+      });
+    }
+
+    let sprintThroughput = 0;
+    let sprintAbsDelta = 0;
+
     for (let cardIndex = 0; cardIndex < CARDS_PER_SPRINT; cardIndex++) {
       const assigned = studentIds[(cardIndex + sprintNumber) % studentIds.length];
       const completed = sprintNumber <= blueprint.computedSprints;
-      const finalStatus = completed
-        ? pickRandom([Status.Done, Status.CanMine])
-        : pickRandom([Status.ToDo, Status.Doing, Status.Prevented]);
+      const finalStatus =
+        maturityTrendMode === "good_case_30pct"
+          ? Status.Done
+          : completed
+            ? pickRandom([Status.Done, Status.CanMine])
+            : pickRandom([Status.ToDo, Status.Doing, Status.Prevented]);
       const cardData = buildCardData({
         sprintId: sprint.id,
         projectId: project.id,
         assigned,
         order: cardIndex + 1,
-        completed: finalStatus === Status.Done,
+        completed: maturityTrendMode === "good_case_30pct" || finalStatus === Status.Done,
         finalStatus,
         createdAt: addDays(sprintStart, 1 + (cardIndex % 6)),
+        timingOverride: goodCaseCardTimings?.[cardIndex],
       });
 
       const createdCard = await prisma.cards.create({ data: cardData });
       applyCardToStats(cardData, statsMap);
+
+      if (maturityTrendMode === "good_case_30pct") {
+        const tempoReal = cardData.tempo ?? 0;
+        const tempoEstimado = cardData.tempo_estimado ?? 0;
+        sprintThroughput += tempoReal;
+        sprintAbsDelta += Math.abs(tempoReal - tempoEstimado);
+      }
 
       const progressionRecords = buildProgressionRecords({
         cardId: createdCard.id,
@@ -786,6 +1005,13 @@ async function createProject(params: {
         await prisma.cardProgression.createMany({ data: progressionRecords });
       }
     }
+
+    if (maturityTrendMode === "good_case_30pct" && goodCaseTracker) {
+      goodCaseTracker.sprintThroughputTotals.push(sprintThroughput);
+      goodCaseTracker.sprintTempoDeltaAbsAverages.push(
+        sprintAbsDelta / CARDS_PER_SPRINT
+      );
+    }
   }
 
   if (maturityTrendMode === "good_case_30pct" && goodCaseTracker) {
@@ -794,7 +1020,22 @@ async function createProject(params: {
       sprintCount: blueprint.sprintCount,
       tracker: goodCaseTracker,
     });
-    console.log(`[Good Case] ${blueprint.name} validado com +30% em maturidade.`);
+    validateGoodCaseThroughputTrend({
+      projectName: blueprint.name,
+      sprintCount: blueprint.sprintCount,
+      tracker: goodCaseTracker,
+    });
+    console.log(`[Good Case] ${blueprint.name} validado em maturidade e throughput.`);
+    console.log(
+      `[Good Case] Throughput por sprint: ${goodCaseTracker.sprintThroughputTotals.join(
+        " -> "
+      )}`
+    );
+    console.log(
+      `[Good Case] Delta médio |tempo-tempo_estimado|: ${goodCaseTracker.sprintTempoDeltaAbsAverages
+        .map((value) => value.toFixed(2))
+        .join(" -> ")}`
+    );
   }
 }
 
@@ -814,7 +1055,7 @@ async function main() {
 
   const primaryClient = clients[0];
   const secondaryClient = clients[1];
-  let primaryClientHasFinalizedProject = false;
+  let goodCaseAssigned = false;
 
   let devCursor = 0;
   for (let i = 0; i < PROJECT_BLUEPRINTS.length; i++) {
@@ -823,12 +1064,12 @@ async function main() {
     let client = secondaryClient;
     if (blueprint.status !== "Finalizado") {
       client = primaryClient;
-    } else if (!primaryClientHasFinalizedProject) {
+    } else if (blueprint.name === GOOD_CASE_BLUEPRINT_NAME) {
       client = primaryClient;
-      primaryClientHasFinalizedProject = true;
+      goodCaseAssigned = true;
     }
     const maturityTrendMode: MaturityTrendMode =
-      blueprint.status === "Finalizado" && client.id === primaryClient.id
+      blueprint.status === "Finalizado" && blueprint.name === GOOD_CASE_BLUEPRINT_NAME
         ? "good_case_30pct"
         : "default";
     const rh = rhs.length ? rhs[i % rhs.length] : undefined;
@@ -844,6 +1085,10 @@ async function main() {
       statsMap: statsAccumulator,
       maturityTrendMode,
     });
+  }
+
+  if (!goodCaseAssigned) {
+    throw new Error(`Projeto good case não encontrado: ${GOOD_CASE_BLUEPRINT_NAME}`);
   }
 
   await persistUserStatistics(statsAccumulator);

@@ -167,10 +167,10 @@ const swaggerUiHtml = `<!DOCTYPE html>
 // Configuração do Clerk
 
 const PUBLIC_PATHS = [
-  /^\/docs(?:\/|$)/,
-  /^\/documentation(?:\/|$)/,
-  /^\/seed\/run(?:\/|$)/,
-  /^\/seed\/unseed(?:\/|$)/,
+  /\/docs(?:\/|$)/,
+  /\/documentation(?:\/|$)/,
+  /\/seed\/run(?:\/|$)/,
+  /\/seed\/unseed(?:\/|$)/,
 ];
 
 type CommandResult = {
