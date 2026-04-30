@@ -80,6 +80,49 @@ const xpFields = [
   "xp_data_analysis",
 ] as const;
 
+const MATURITY_GROWTH_FACTOR = 1.3;
+const MATURITY_VALIDATION_TOLERANCE = 1e-6;
+const GOOD_CASE_START_PATTERN = [3, 3, 3, 3, 4, 4] as const;
+
+const capacidadeFields = [
+  "reformulacao_problema",
+  "separacao_sintoma_causa",
+  "autocritica_tecnica",
+  "escolha_abordagens_tecnicas",
+] as const;
+
+const comunicacaoFields = [
+  "validacao_entendimento_pre_execucao",
+  "clareza_exposicao_tecnica",
+  "participacao_discussoes_tecnicas",
+  "sinalizacao_desalinhamento_ruido",
+] as const;
+
+const execucaoFields = [
+  "delta_time_predict",
+  "reestimativa_ativa",
+  "estabilidade_throughput",
+  "sinalizacao_bloqueios",
+  "qualidade_cards_dor",
+  "aderencia_entregas_dod",
+] as const;
+
+const contribuicaoFields = [
+  "ajudas_prestadas",
+  "sinalizacao_risco_tecnico_integracao",
+  "compartilhamento_solucoes",
+  "participacao_feedbacks",
+] as const;
+
+const maturityFields = [
+  ...capacidadeFields,
+  ...comunicacaoFields,
+  ...execucaoFields,
+  ...contribuicaoFields,
+] as const;
+
+type MaturityTrendMode = "default" | "good_case_30pct";
+
 type StatsAccumulator = {
   xp_frontend: number;
   xp_backend: number;
@@ -93,6 +136,23 @@ type StatsAccumulator = {
   hasDelta: boolean;
 };
 
+type MaturityField = (typeof maturityFields)[number];
+
+type MaturityValueRange = {
+  start: number;
+  end: number;
+};
+
+type GoodCaseMaturityPlan = Record<
+  MaturityField,
+  Record<string, MaturityValueRange>
+>;
+
+type GoodCaseValidationTracker = {
+  projectName: string;
+  perFieldSprintAverages: Record<MaturityField, number[]>;
+};
+
 const clerkSecret = process.env.CLERK_SECRET_KEY;
 if (!clerkSecret) {
   throw new Error("CLERK_SECRET_KEY não definido. Configure o .env antes de rodar o seed.");
@@ -104,6 +164,22 @@ type CardCreateInput = Parameters<typeof prisma.cards.create>[0]["data"];
 
 type ProgressionCreateInput = Parameters<
   typeof prisma.cardProgression.createMany
+>[0]["data"][number];
+
+type CapacidadeCreateInput = Parameters<
+  typeof prisma.capacidadeCognitivaAplicada.createMany
+>[0]["data"][number];
+
+type ComunicacaoCreateInput = Parameters<
+  typeof prisma.comunicacaoOperacional.createMany
+>[0]["data"][number];
+
+type ExecucaoCreateInput = Parameters<
+  typeof prisma.execucaoConfiavel.createMany
+>[0]["data"][number];
+
+type ContribuicaoCreateInput = Parameters<
+  typeof prisma.contribuicaoSistemica.createMany
 >[0]["data"][number];
 
 function addDays(base: Date, days: number) {
@@ -131,6 +207,105 @@ function realisticTempo(estimated: number, completed: boolean) {
     return Math.max(estimated, estimated + Math.floor(Math.random() * 2) - 1);
   }
   return estimated + Math.floor(Math.random() * 3);
+}
+
+function shuffleArray<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function createGoodCaseMaturityPlan(userIds: string[]): GoodCaseMaturityPlan {
+  if (userIds.length !== GOOD_CASE_START_PATTERN.length) {
+    throw new Error(
+      `Good case requer ${GOOD_CASE_START_PATTERN.length} devs, recebido: ${userIds.length}`
+    );
+  }
+
+  const plan = {} as GoodCaseMaturityPlan;
+  for (const field of maturityFields) {
+    const starts = shuffleArray([...GOOD_CASE_START_PATTERN]);
+    const byUser: Record<string, MaturityValueRange> = {};
+    for (let i = 0; i < userIds.length; i++) {
+      const start = starts[i];
+      byUser[userIds[i]] = {
+        start,
+        end: start + 1,
+      };
+    }
+    plan[field] = byUser;
+  }
+  return plan;
+}
+
+function createGoodCaseValidationTracker(projectName: string): GoodCaseValidationTracker {
+  return {
+    projectName,
+    perFieldSprintAverages: Object.fromEntries(
+      maturityFields.map((field) => [field, []])
+    ) as Record<MaturityField, number[]>,
+  };
+}
+
+function computeGoodCaseAttributeValue(params: {
+  userId: string;
+  field: MaturityField;
+  sprintNumber: number;
+  sprintCount: number;
+  plan: GoodCaseMaturityPlan;
+}) {
+  const { userId, field, sprintNumber, sprintCount, plan } = params;
+  const userPlan = plan[field][userId];
+  if (!userPlan) {
+    throw new Error(`Plano de maturidade ausente para ${field} do usuário ${userId}`);
+  }
+
+  if (sprintCount <= 1) return userPlan.end;
+
+  const progress = (sprintNumber - 1) / (sprintCount - 1);
+  const rawValue = userPlan.start + (userPlan.end - userPlan.start) * progress;
+  return Math.round(rawValue);
+}
+
+function validateGoodCaseMaturityTrend(params: {
+  projectName: string;
+  sprintCount: number;
+  tracker: GoodCaseValidationTracker;
+}) {
+  const { projectName, sprintCount, tracker } = params;
+
+  for (const field of maturityFields) {
+    const values = tracker.perFieldSprintAverages[field];
+    if (values.length !== sprintCount) {
+      throw new Error(
+        `[Good Case] ${projectName} inválido em ${field}: esperado ${sprintCount} sprints, obtido ${values.length}.`
+      );
+    }
+
+    for (let i = 1; i < values.length; i++) {
+      if (values[i] + MATURITY_VALIDATION_TOLERANCE < values[i - 1]) {
+        throw new Error(
+          `[Good Case] ${projectName} sem progressão monotônica em ${field}: sprint ${
+            i
+          }=${values[i - 1].toFixed(4)} -> sprint ${i + 1}=${values[i].toFixed(4)}`
+        );
+      }
+    }
+
+    const first = values[0];
+    const last = values[values.length - 1];
+    const expected = first * MATURITY_GROWTH_FACTOR;
+    if (Math.abs(last - expected) > MATURITY_VALIDATION_TOLERANCE) {
+      throw new Error(
+        `[Good Case] ${projectName} sem +30% em ${field}: primeira=${first.toFixed(
+          4
+        )}, última=${last.toFixed(4)}, esperado=${expected.toFixed(4)}`
+      );
+    }
+  }
 }
 
 async function ensureClerkUser(role: SeedRole, index: number): Promise<SeededUser> {
@@ -371,50 +546,112 @@ async function createIndicatorsForDaily(params: {
   sprintId: number;
   dailyId: number;
   userIds: string[];
+  sprintNumber: number;
+  sprintCount: number;
+  maturityTrendMode: MaturityTrendMode;
+  goodCasePlan?: GoodCaseMaturityPlan;
+  goodCaseTracker?: GoodCaseValidationTracker;
 }) {
-  const { sprintId, dailyId, userIds } = params;
+  const {
+    sprintId,
+    dailyId,
+    userIds,
+    sprintNumber,
+    sprintCount,
+    maturityTrendMode,
+    goodCasePlan,
+    goodCaseTracker,
+  } = params;
 
-  const capacidadePayload = userIds.map((user_id) => ({
+  const isGoodCase = maturityTrendMode === "good_case_30pct";
+  if (isGoodCase && !goodCasePlan) {
+    throw new Error("Modo good_case_30pct exige plano de maturidade.");
+  }
+
+  const sprintSamples = Object.fromEntries(
+    maturityFields.map((field) => [field, [] as number[]])
+  ) as Record<MaturityField, number[]>;
+
+  const resolveAttributeValue = (userId: string, field: MaturityField) => {
+    if (isGoodCase) {
+      const value = computeGoodCaseAttributeValue({
+        userId,
+        field,
+        sprintNumber,
+        sprintCount,
+        plan: goodCasePlan!,
+      });
+      sprintSamples[field].push(value);
+      return value;
+    }
+
+    if (field === "delta_time_predict") {
+      return 1 + Math.floor(Math.random() * 5);
+    }
+    return juniorScore();
+  };
+
+  const capacidadePayload: CapacidadeCreateInput[] = userIds.map((user_id) => ({
     user_id,
     sprint_id: sprintId,
     daily_id: dailyId,
-    reformulacao_problema: juniorScore(),
-    separacao_sintoma_causa: juniorScore(),
-    autocritica_tecnica: juniorScore(),
-    escolha_abordagens_tecnicas: juniorScore(),
+    reformulacao_problema: resolveAttributeValue(user_id, "reformulacao_problema"),
+    separacao_sintoma_causa: resolveAttributeValue(user_id, "separacao_sintoma_causa"),
+    autocritica_tecnica: resolveAttributeValue(user_id, "autocritica_tecnica"),
+    escolha_abordagens_tecnicas: resolveAttributeValue(user_id, "escolha_abordagens_tecnicas"),
   }));
 
-  const comunicacaoPayload = userIds.map((user_id) => ({
+  const comunicacaoPayload: ComunicacaoCreateInput[] = userIds.map((user_id) => ({
     user_id,
     sprint_id: sprintId,
     daily_id: dailyId,
-    validacao_entendimento_pre_execucao: juniorScore(),
-    clareza_exposicao_tecnica: juniorScore(),
-    participacao_discussoes_tecnicas: juniorScore(),
-    sinalizacao_desalinhamento_ruido: juniorScore(),
+    validacao_entendimento_pre_execucao: resolveAttributeValue(
+      user_id,
+      "validacao_entendimento_pre_execucao"
+    ),
+    clareza_exposicao_tecnica: resolveAttributeValue(user_id, "clareza_exposicao_tecnica"),
+    participacao_discussoes_tecnicas: resolveAttributeValue(
+      user_id,
+      "participacao_discussoes_tecnicas"
+    ),
+    sinalizacao_desalinhamento_ruido: resolveAttributeValue(
+      user_id,
+      "sinalizacao_desalinhamento_ruido"
+    ),
   }));
 
-  const execucaoPayload = userIds.map((user_id) => ({
+  const execucaoPayload: ExecucaoCreateInput[] = userIds.map((user_id) => ({
     user_id,
     sprint_id: sprintId,
     daily_id: dailyId,
-    delta_time_predict: 1 + Math.floor(Math.random() * 5),
-    reestimativa_ativa: juniorScore(),
-    estabilidade_throughput: juniorScore(),
-    sinalizacao_bloqueios: juniorScore(),
-    qualidade_cards_dor: juniorScore(),
-    aderencia_entregas_dod: juniorScore(),
+    delta_time_predict: resolveAttributeValue(user_id, "delta_time_predict"),
+    reestimativa_ativa: resolveAttributeValue(user_id, "reestimativa_ativa"),
+    estabilidade_throughput: resolveAttributeValue(user_id, "estabilidade_throughput"),
+    sinalizacao_bloqueios: resolveAttributeValue(user_id, "sinalizacao_bloqueios"),
+    qualidade_cards_dor: resolveAttributeValue(user_id, "qualidade_cards_dor"),
+    aderencia_entregas_dod: resolveAttributeValue(user_id, "aderencia_entregas_dod"),
   }));
 
-  const contribuicaoPayload = userIds.map((user_id) => ({
+  const contribuicaoPayload: ContribuicaoCreateInput[] = userIds.map((user_id) => ({
     user_id,
     sprint_id: sprintId,
     daily_id: dailyId,
-    ajudas_prestadas: juniorScore(),
-    sinalizacao_risco_tecnico_integracao: juniorScore(),
-    compartilhamento_solucoes: juniorScore(),
-    participacao_feedbacks: juniorScore(),
+    ajudas_prestadas: resolveAttributeValue(user_id, "ajudas_prestadas"),
+    sinalizacao_risco_tecnico_integracao: resolveAttributeValue(
+      user_id,
+      "sinalizacao_risco_tecnico_integracao"
+    ),
+    compartilhamento_solucoes: resolveAttributeValue(user_id, "compartilhamento_solucoes"),
+    participacao_feedbacks: resolveAttributeValue(user_id, "participacao_feedbacks"),
   }));
+
+  if (isGoodCase && goodCaseTracker) {
+    for (const field of maturityFields) {
+      const values = sprintSamples[field];
+      const avg = values.reduce((acc, value) => acc + value, 0) / values.length;
+      goodCaseTracker.perFieldSprintAverages[field].push(avg);
+    }
+  }
 
   await prisma.capacidadeCognitivaAplicada.createMany({ data: capacidadePayload });
   await prisma.comunicacaoOperacional.createMany({ data: comunicacaoPayload });
@@ -429,13 +666,30 @@ async function createProject(params: {
   rhId?: string | null;
   studentIds: string[];
   statsMap: Map<string, StatsAccumulator>;
+  maturityTrendMode?: MaturityTrendMode;
 }) {
-  const { blueprint, mentorId, clientId, rhId, studentIds, statsMap } = params;
+  const {
+    blueprint,
+    mentorId,
+    clientId,
+    rhId,
+    studentIds,
+    statsMap,
+    maturityTrendMode = "default",
+  } = params;
   if (studentIds.length < STUDENTS_PER_PROJECT) {
     throw new Error("Quantidade insuficiente de devs para o projeto");
   }
   const projectStart = new Date(BASE_YEAR, blueprint.startMonth, 1);
   const projectEnd = addMonths(projectStart, blueprint.durationMonths);
+  const goodCasePlan =
+    maturityTrendMode === "good_case_30pct"
+      ? createGoodCaseMaturityPlan(studentIds)
+      : undefined;
+  const goodCaseTracker =
+    maturityTrendMode === "good_case_30pct"
+      ? createGoodCaseValidationTracker(blueprint.name)
+      : undefined;
 
   const project = await prisma.projetos.create({
     data: {
@@ -494,6 +748,11 @@ async function createProject(params: {
       sprintId: sprint.id,
       dailyId: daily.id,
       userIds: studentIds,
+      sprintNumber,
+      sprintCount: blueprint.sprintCount,
+      maturityTrendMode,
+      goodCasePlan,
+      goodCaseTracker,
     });
 
     for (let cardIndex = 0; cardIndex < CARDS_PER_SPRINT; cardIndex++) {
@@ -528,6 +787,15 @@ async function createProject(params: {
       }
     }
   }
+
+  if (maturityTrendMode === "good_case_30pct" && goodCaseTracker) {
+    validateGoodCaseMaturityTrend({
+      projectName: blueprint.name,
+      sprintCount: blueprint.sprintCount,
+      tracker: goodCaseTracker,
+    });
+    console.log(`[Good Case] ${blueprint.name} validado com +30% em maturidade.`);
+  }
 }
 
 async function main() {
@@ -535,7 +803,7 @@ async function main() {
   const statsAccumulator = new Map<string, StatsAccumulator>();
 
   const mentors = await provisionRoleUsers("Mentor", PROJECT_BLUEPRINTS.length);
-  const clients = await provisionRoleUsers("Cliente", PROJECT_BLUEPRINTS.length);
+  const clients = await provisionRoleUsers("Cliente", 2);
   const rhs = await provisionRoleUsers("RH", Math.max(1, Math.ceil(PROJECT_BLUEPRINTS.length / 2)));
   const devs = await provisionRoleUsers(
     "Dev",
@@ -544,11 +812,25 @@ async function main() {
 
   await upsertLocalUsers([...mentors, ...clients, ...rhs, ...devs]);
 
+  const primaryClient = clients[0];
+  const secondaryClient = clients[1];
+  let primaryClientHasFinalizedProject = false;
+
   let devCursor = 0;
   for (let i = 0; i < PROJECT_BLUEPRINTS.length; i++) {
     const blueprint = PROJECT_BLUEPRINTS[i];
     const mentor = mentors[i % mentors.length];
-    const client = clients[i % clients.length];
+    let client = secondaryClient;
+    if (blueprint.status !== "Finalizado") {
+      client = primaryClient;
+    } else if (!primaryClientHasFinalizedProject) {
+      client = primaryClient;
+      primaryClientHasFinalizedProject = true;
+    }
+    const maturityTrendMode: MaturityTrendMode =
+      blueprint.status === "Finalizado" && client.id === primaryClient.id
+        ? "good_case_30pct"
+        : "default";
     const rh = rhs.length ? rhs[i % rhs.length] : undefined;
     const devSlice = devs.slice(devCursor, devCursor + STUDENTS_PER_PROJECT);
     devCursor += STUDENTS_PER_PROJECT;
@@ -560,6 +842,7 @@ async function main() {
       rhId: rh?.id ?? null,
       studentIds: devSlice.map((dev) => dev.id),
       statsMap: statsAccumulator,
+      maturityTrendMode,
     });
   }
 

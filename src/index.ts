@@ -27,8 +27,9 @@ const app = Fastify({ logger: true });
 app.register(clerkPlugin);
 
 const PUBLIC_SEED_PATH = "/seed/run";
+const PUBLIC_UNSEED_PATH = "/seed/unseed";
 const MAX_COMMAND_OUTPUT_LENGTH = 5_000;
-let isSeedRunning = false;
+let isSeedOperationRunning = false;
 
 // Configuração do CORS
 app.register(cors, {
@@ -169,6 +170,7 @@ const PUBLIC_PATHS = [
   /^\/docs(?:\/|$)/,
   /^\/documentation(?:\/|$)/,
   /^\/seed\/run(?:\/|$)/,
+  /^\/seed\/unseed(?:\/|$)/,
 ];
 
 type CommandResult = {
@@ -240,13 +242,13 @@ app.addHook("preHandler", async (request, reply) => {
 });
 
 app.post(PUBLIC_SEED_PATH, { schema: { tags: ["Seed"], security: [] } }, async (_request, reply) => {
-  if (isSeedRunning) {
+  if (isSeedOperationRunning) {
     return reply.code(409).send({
-      message: "Seed já está em execução.",
+      message: "Operação de seed/unseed já está em execução.",
     });
   }
 
-  isSeedRunning = true;
+  isSeedOperationRunning = true;
 
   try {
     const migrateResult = await runCommand("npx", ["prisma", "migrate", "deploy"]);
@@ -283,7 +285,43 @@ app.post(PUBLIC_SEED_PATH, { schema: { tags: ["Seed"], security: [] } }, async (
       error: error instanceof Error ? error.message : "Unknown error",
     });
   } finally {
-    isSeedRunning = false;
+    isSeedOperationRunning = false;
+  }
+});
+
+app.post(PUBLIC_UNSEED_PATH, { schema: { tags: ["Seed"], security: [] } }, async (_request, reply) => {
+  if (isSeedOperationRunning) {
+    return reply.code(409).send({
+      message: "Operação de seed/unseed já está em execução.",
+    });
+  }
+
+  isSeedOperationRunning = true;
+
+  try {
+    const unseedResult = await runCommand("npm", ["run", "unseed"]);
+
+    if (unseedResult.exitCode !== 0) {
+      return reply.code(500).send({
+        message: "Falha ao executar unseed.",
+        exitCode: unseedResult.exitCode,
+        stderr: clipOutput(unseedResult.stderr),
+        stdout: clipOutput(unseedResult.stdout),
+      });
+    }
+
+    return reply.send({
+      message: "Unseed executado com sucesso.",
+      unseedStdout: clipOutput(unseedResult.stdout),
+    });
+  } catch (error) {
+    app.log.error(error);
+    return reply.code(500).send({
+      message: "Erro ao iniciar unseed.",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  } finally {
+    isSeedOperationRunning = false;
   }
 });
 
