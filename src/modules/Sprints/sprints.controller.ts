@@ -67,41 +67,65 @@ class SprintController {
     reply: FastifyReply
   ) {
     try {
-      // Convertendo o id para número
+      console.log("Atualizando sprint com os dados:", request.body);
       const id = Number(request.params.id);
+      const validId = SprintsIdSchema.parse({ id });
+      const userId = (request as any).userId;
+      if (!userId) {
+        return reply.status(401).send({ message: "User not authenticated" });
+      }
   
-      // Obtendo o corpo da requisição
       const toSprintsDto = UpdateSprintsSchema.parse(request.body);
       
-      // Atualizando o sprint
-      const updatedSprint = await sprintService.updateSprint(id, toSprintsDto);
-      if (!updatedSprint) {
-        // Retorna 404 se o sprint não for encontrado
-        return reply.status(404).send({ message: 'Sprint not found' });
-      }
+      const updatedSprint = await sprintService.updateSprint(
+        validId.id,
+        toSprintsDto,
+        userId
+      );
       reply.send(updatedSprint);
       
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof ZodError) {
-        // Se o erro for de validação do Zod, retorna 400 com a mensagem personalizada
         return reply.status(400).send({ message: 'Validation error' });
       }
-      
+      const message = error?.message ?? "Internal Server Error";
       console.log(error);
-      reply.status(500).send({ message: error || 'Internal Server Error' });
+      if (message.includes("não encontrada")) {
+        return reply.status(404).send({ message: "Sprint not found" });
+      }
+      if (message.includes("Acesso negado")) {
+        return reply.status(403).send({ message });
+      }
+      reply.status(500).send({ message });
     }
   }
 
   async deleteSprint(
-    request: FastifyRequest<{ Params: { id: number } }>,
+    request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply
   ) {
-    const { id } = SprintsIdSchema.parse(request.params);
     try {
-      const sprint = await sprintService.deleteSprint(id);
+      const id = Number(request.params.id);
+      const validId = SprintsIdSchema.parse({ id });
+      const userId = (request as any).userId;
+      if (!userId) {
+        return reply.status(401).send({ message: "User not authenticated" });
+      }
+
+      const sprint = await sprintService.deleteSprint(validId.id, userId);
       reply.send(sprint);
-    } catch (error) {
-      reply.status(500).send({ message: error });
+    } catch (error: any) {
+      const message = error?.message ?? "Internal Server Error";
+      if (error instanceof ZodError) {
+        return reply.status(400).send({ message: "Validation error" });
+      }
+      if (message.includes("não encontrada")) {
+        return reply.status(404).send({ message: "Sprint not found" });
+      }
+      if (message.includes("Acesso negado")) {
+        return reply.status(403).send({ message });
+      }
+      reply.status(500).send({ message });
     }
   }
 
