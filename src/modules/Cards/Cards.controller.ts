@@ -61,6 +61,7 @@ class CardsController {
 
   async delete(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const { id } = request.params;
+    
     try {
       await cardsService.delete(Number(id));
       reply.status(200).send();

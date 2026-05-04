@@ -181,17 +181,29 @@ class CardsService {
       if (!card) {
         throw new Error("Card não encontrado");
       }
-
+      
       const projectId = await this.resolveProjectIdFromContext(
         card.projeto,
         card.sprint
       );
       await this.ensureProjectAllowsModification(projectId);
 
-      return await prisma.cards.delete({
-        where: { id },
+      return await prisma.$transaction(async (tx) => {
+        await tx.cardProgression.deleteMany({
+          where: { card_id: id },
+        });
+
+        await tx.users.updateMany({
+          where: { last_card: id },
+          data: { last_card: null },
+        });
+
+        return tx.cards.delete({
+          where: { id },
+        });
       });
     } catch (error) {
+      console.log(error);
       throw new Error("Falha ao deletar o card");
     }
   }
