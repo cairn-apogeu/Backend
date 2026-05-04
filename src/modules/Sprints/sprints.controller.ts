@@ -44,12 +44,14 @@ class SprintController {
     request: FastifyRequest<{ Body: ToSprintsDto }>,
     reply: FastifyReply
   ) {
+    
     try {
       const toSprintsDto = ToSprintsSchema.parse(request.body);
       const sprint = await sprintService.newSprint(toSprintsDto);
       reply.send(sprint);
     } catch (error) {
       if (error instanceof ZodError) {
+        console.log("Erro de validação:", error.errors);
         // Se o erro for de validação do Zod, retorna 400 com a mensagem personalizada
         return reply.status(400).send({ message: 'Validation error' });
       }

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const ToSprintsSchema = z.object({
   id_projeto: z.number(),
   numero: z.number(),
-  objetivo: z.string(),
+  objetivo: z.string().optional(),
   dia_inicio: z.string().transform((val) => new Date(val)),
   dia_fim: z.string().transform((val) => new Date(val)),
 });

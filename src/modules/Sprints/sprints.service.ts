@@ -48,6 +48,7 @@ class SprintService {
   }
 
   async newSprint(data: ToSprintsDto) {
+    console.log("Criando nova sprint com os dados:", data);
     try {
       return await prisma.sprints.create({
         data: {
