@@ -33,21 +33,21 @@ describe('POST /sprints', () => {
     const cliente = await prisma.users.create({
       data: {
         user_clerk_id: '123',
-        tipo_perfil: 'cliente',
+        tipo_perfil: 'Cliente',
       },
     });
   
     const gestor = await prisma.users.create({
       data: {
         user_clerk_id: '124',
-        tipo_perfil: 'gestor',
+        tipo_perfil: 'Mentor',
       },
     });
   
     const projeto = await prisma.projetos.create({
       data: {
         id_cliente: cliente.user_clerk_id,
-        id_gestor: gestor.user_clerk_id,
+        id_mentor: gestor.user_clerk_id,
         nome: 'Projeto Teste',
         valor: 5000,
         status: 'Ativo',
@@ -94,7 +94,7 @@ describe('GET /sprints/:id', () => {
     const cliente = await prisma.users.create({
       data: {
         user_clerk_id: '123',
-        tipo_perfil: 'cliente',
+        tipo_perfil: 'Cliente',
       },
     });
   
@@ -102,7 +102,7 @@ describe('GET /sprints/:id', () => {
     const gestor = await prisma.users.create({
       data: {
         user_clerk_id: '124',
-        tipo_perfil: 'gestor',
+        tipo_perfil: 'Mentor',
       },
     });
   
@@ -110,7 +110,7 @@ describe('GET /sprints/:id', () => {
     const projeto = await prisma.projetos.create({
       data: {
         id_cliente: cliente.user_clerk_id,
-        id_gestor: gestor.user_clerk_id,
+        id_mentor: gestor.user_clerk_id,
         nome: 'Projeto Teste',
         valor: 5000,
         status: 'Ativo',
@@ -152,7 +152,7 @@ describe('PUT /sprints/:id', () => {
      const cliente = await prisma.users.create({
       data: {
         user_clerk_id: '123',
-        tipo_perfil: 'cliente',
+        tipo_perfil: 'Cliente',
       },
     });
   
@@ -160,7 +160,7 @@ describe('PUT /sprints/:id', () => {
     const gestor = await prisma.users.create({
       data: {
         user_clerk_id: '124',
-        tipo_perfil: 'gestor',
+        tipo_perfil: 'Mentor',
       },
     });
   
@@ -168,7 +168,7 @@ describe('PUT /sprints/:id', () => {
     const projeto = await prisma.projetos.create({
       data: {
         id_cliente: cliente.user_clerk_id,
-        id_gestor: gestor.user_clerk_id,
+        id_mentor: gestor.user_clerk_id,
         nome: 'Projeto Teste',
         valor: 5000,
         status: 'Ativo',
@@ -178,7 +178,7 @@ describe('PUT /sprints/:id', () => {
     const projeto2 = await prisma.projetos.create({
       data: {
         id_cliente: cliente.user_clerk_id,
-        id_gestor: gestor.user_clerk_id,
+        id_mentor: gestor.user_clerk_id,
         nome: 'Projeto Teste2',
         valor: 5000,
         status: 'Ativo',
@@ -213,7 +213,7 @@ describe('PUT /sprints/:id', () => {
      const cliente = await prisma.users.create({
       data: {
         user_clerk_id: '123',
-        tipo_perfil: 'cliente',
+        tipo_perfil: 'Cliente',
       },
     });
   
@@ -221,7 +221,7 @@ describe('PUT /sprints/:id', () => {
     const gestor = await prisma.users.create({
       data: {
         user_clerk_id: '124',
-        tipo_perfil: 'gestor',
+        tipo_perfil: 'Mentor',
       },
     });
   
@@ -229,7 +229,7 @@ describe('PUT /sprints/:id', () => {
     const projeto = await prisma.projetos.create({
       data: {
         id_cliente: cliente.user_clerk_id,
-        id_gestor: gestor.user_clerk_id,
+        id_mentor: gestor.user_clerk_id,
         nome: 'Projeto Teste',
         valor: 5000,
         status: 'Ativo',
