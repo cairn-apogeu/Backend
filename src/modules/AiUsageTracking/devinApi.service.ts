@@ -37,18 +37,22 @@ interface DevinConsumptionResponse {
   }>;
 }
 
+interface PromptResponsePair {
+  prompt: string;
+  prompt_created_at: string;
+  devin_response: string;
+  acu_cost: number | null;
+}
+
 interface SyncResult {
   sessions_found: number;
-  prompts_imported: number;
+  total_interactions: number;
   sessions: Array<{
     session_id: string;
     status: string;
     created_at: string;
-    acus_consumed: number;
-    user_prompts: Array<{
-      message: string;
-      created_at: string;
-    }>;
+    total_acus: number;
+    interactions: PromptResponsePair[];
   }>;
 }
 
@@ -132,6 +136,48 @@ class DevinApiService {
     return response.data;
   }
 
+  pairPromptsWithResponses(
+    messages: DevinSessionMessage[],
+    totalAcus: number
+  ): PromptResponsePair[] {
+    const sorted = [...messages].sort((a, b) => a.created_at - b.created_at);
+    const pairs: PromptResponsePair[] = [];
+
+    let i = 0;
+    while (i < sorted.length) {
+      if (sorted[i].source === "user") {
+        const userMsg = sorted[i];
+        const responseTexts: string[] = [];
+        let j = i + 1;
+
+        while (j < sorted.length && sorted[j].source === "devin") {
+          responseTexts.push(sorted[j].message);
+          j++;
+        }
+
+        pairs.push({
+          prompt: userMsg.message,
+          prompt_created_at: new Date(userMsg.created_at * 1000).toISOString(),
+          devin_response: responseTexts.join("\n\n---\n\n"),
+          acu_cost: null,
+        });
+
+        i = j;
+      } else {
+        i++;
+      }
+    }
+
+    if (pairs.length > 0 && totalAcus > 0) {
+      const costPerInteraction = totalAcus / pairs.length;
+      for (const pair of pairs) {
+        pair.acu_cost = Math.round(costPerInteraction * 100) / 100;
+      }
+    }
+
+    return pairs;
+  }
+
   async syncSessions(
     apiKey: string,
     orgId: string,
@@ -141,7 +187,7 @@ class DevinApiService {
 
     const result: SyncResult = {
       sessions_found: sessions.length,
-      prompts_imported: 0,
+      total_interactions: 0,
       sessions: [],
     };
 
@@ -153,21 +199,19 @@ class DevinApiService {
           session.session_id
         );
 
-        const userPrompts = messages
-          .filter((m) => m.source === "user")
-          .map((m) => ({
-            message: m.message,
-            created_at: new Date(m.created_at * 1000).toISOString(),
-          }));
+        const interactions = this.pairPromptsWithResponses(
+          messages,
+          session.acus_consumed
+        );
 
-        result.prompts_imported += userPrompts.length;
+        result.total_interactions += interactions.length;
 
         result.sessions.push({
           session_id: session.session_id,
           status: session.status,
           created_at: new Date(session.created_at * 1000).toISOString(),
-          acus_consumed: session.acus_consumed,
-          user_prompts: userPrompts,
+          total_acus: session.acus_consumed,
+          interactions,
         });
       } catch (error) {
         const axiosErr = error as AxiosError;
@@ -179,8 +223,8 @@ class DevinApiService {
           session_id: session.session_id,
           status: session.status,
           created_at: new Date(session.created_at * 1000).toISOString(),
-          acus_consumed: session.acus_consumed,
-          user_prompts: [],
+          total_acus: session.acus_consumed,
+          interactions: [],
         });
       }
     }

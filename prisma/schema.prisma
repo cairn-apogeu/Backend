@@ -311,6 +311,8 @@ model AiUsageTracking {
   id                           String   @id @default(uuid())
   user_id                      String
   prompt                       String
+  devin_response               String?
+  devin_session_id             String?
   created_at                   DateTime @default(now())
   acu_consumption_after_response Float?
   doing_cards_snapshot         Json
@@ -319,4 +321,5 @@ model AiUsageTracking {
 
   @@index([user_id])
   @@index([created_at])
+  @@index([devin_session_id])
 }

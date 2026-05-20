@@ -27,6 +27,8 @@ class AiUsageTrackingService {
         data: {
           user_id: userId,
           prompt: dto.prompt,
+          devin_response: dto.devin_response ?? null,
+          devin_session_id: dto.devin_session_id ?? null,
           acu_consumption_after_response:
             dto.acu_consumption_after_response ?? null,
           doing_cards_snapshot: snapshot,

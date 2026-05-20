@@ -150,24 +150,37 @@ class AiUsageTrackingController {
         body.session_id
       );
 
-      const userPrompts = messages.filter((m) => m.source === "user");
-      const imported: Array<{ id: string; prompt: string; created_at: Date }> = [];
+      const totalAcus = body.acus_consumed ?? 0;
+      const interactions = devinApiService.pairPromptsWithResponses(messages, totalAcus);
 
-      for (const prompt of userPrompts) {
+      const imported: Array<{
+        id: string;
+        prompt: string;
+        devin_response: string;
+        acu_cost: number | null;
+        created_at: Date;
+      }> = [];
+
+      for (const interaction of interactions) {
         const record = await aiUsageTrackingService.create(userId, {
-          prompt: prompt.message,
-          acu_consumption_after_response: body.acus_consumed ?? null,
+          prompt: interaction.prompt,
+          devin_response: interaction.devin_response || null,
+          devin_session_id: body.session_id,
+          acu_consumption_after_response: interaction.acu_cost,
         });
         imported.push({
           id: record.id,
-          prompt: prompt.message,
+          prompt: interaction.prompt,
+          devin_response: interaction.devin_response,
+          acu_cost: interaction.acu_cost,
           created_at: record.created_at,
         });
       }
 
       reply.code(201).send({
         session_id: body.session_id,
-        prompts_imported: imported.length,
+        total_acus: totalAcus,
+        interactions_imported: imported.length,
         records: imported,
       });
     } catch (error: unknown) {
