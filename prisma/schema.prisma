@@ -56,6 +56,7 @@ model Users {
   contribuicoesSistemicas ContribuicaoSistemica[]
 
   DevsProjetos DevsProjetos[]
+  aiUsageTracking AiUsageTracking[]
 
   userStatistics UserStatistics?
   last_card      Int?
@@ -304,4 +305,18 @@ model ContribuicaoSistemica {
   @@index([user_id])
   @@index([sprint_id])
   @@index([daily_id])
+}
+
+model AiUsageTracking {
+  id                           String   @id @default(uuid())
+  user_id                      String
+  prompt                       String
+  created_at                   DateTime @default(now())
+  acu_consumption_after_response Float?
+  doing_cards_snapshot         Json
+
+  user Users @relation(fields: [user_id], references: [user_clerk_id])
+
+  @@index([user_id])
+  @@index([created_at])
 }

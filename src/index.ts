@@ -18,6 +18,7 @@ import execucaoConfiavelRoutes from "./modules/execucaoConfiavel/execucaoConfiav
 import contribuicaoSistemicaRoutes from "./modules/contribuicaoSistemica/contribuicaoSistemica.routes";
 import dailyRoutes from "./modules/daily/daily.routes";
 import cardProgressionRoutes from "./modules/cardProgression/cardProgression.routes";
+import aiUsageTrackingRoutes from "./modules/AiUsageTracking/aiUsageTracking.routes";
 
 const PORT = parseInt(process.env.PORT || "3333", 10);
 const SWAGGER_SERVER_URL =
@@ -352,6 +353,7 @@ app.register(execucaoConfiavelRoutes); // Rotas para execução confiável
 app.register(contribuicaoSistemicaRoutes); // Rotas para contribuição sistêmica
 app.register(dailyRoutes); // Rotas para daily
 app.register(cardProgressionRoutes); // Rotas para histórico de cards
+app.register(aiUsageTrackingRoutes); // Rotas para tracking de uso de IA
 
 // Inicialização do servidor
 const start = async () => {
