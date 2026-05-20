@@ -8,6 +8,7 @@ import projetoRoutes from "./modules/projetos/projetos.routes";
 import cardsRoutes from "./modules/Cards/Cards.routes";
 import usersRoutes from "./modules/users/users.routes";
 import sprintRoutes from "./modules/Sprints/sprints.routes";
+import aiUsageTrackingRoutes from "./modules/AiUsageTracking/aiUsageTracking.routes";
 
 const app = Fastify({ logger: true });
 app.register(clerkPlugin);
@@ -47,6 +48,7 @@ app.register(projetoRoutes); // Rotas para projetos
 app.register(cardsRoutes);   // Rotas para cards
 app.register(usersRoutes);   // Rotas para usuários
 app.register(sprintRoutes);  // Rotas para sprints
+app.register(aiUsageTrackingRoutes); // Rotas para tracking de uso de IA
 
 // Inicialização do servidor
 const start = async () => {
