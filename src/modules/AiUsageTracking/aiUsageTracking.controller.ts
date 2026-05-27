@@ -150,7 +150,21 @@ class AiUsageTrackingController {
         body.session_id
       );
 
-      const totalAcus = body.acus_consumed ?? 0;
+      let totalAcus = body.acus_consumed ?? 0;
+
+      if (totalAcus === 0) {
+        try {
+          const consumption = await devinApiService.getSessionConsumption(
+            body.devin_api_key,
+            body.devin_org_id,
+            body.session_id
+          );
+          totalAcus = consumption.total_acus ?? 0;
+        } catch (consumptionError) {
+          console.warn("Não foi possível obter consumo de ACUs automaticamente:", consumptionError);
+        }
+      }
+
       const interactions = devinApiService.pairPromptsWithResponses(messages, totalAcus);
 
       const imported: Array<{
@@ -190,6 +204,108 @@ class AiUsageTrackingController {
       console.error("Erro ao importar prompts do Devin:", error);
       reply.code(500).send({
         error: error instanceof Error ? error.message : "Erro ao importar prompts",
+      });
+    }
+  }
+  async importAllDevinSessions(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) {
+    try {
+      const { userId } = getAuth(request);
+      if (!userId) {
+        return reply.code(401).send({ error: "Usuário não autenticado" });
+      }
+
+      const body = SyncDevinSessionsSchema.parse(request.body);
+      const syncResult = await devinApiService.syncSessions(
+        body.devin_api_key,
+        body.devin_org_id,
+        {
+          limit: body.limit,
+          createdAfter: body.created_after,
+          createdBefore: body.created_before,
+        }
+      );
+
+      const existingRecords = await aiUsageTrackingService.findByUser(userId);
+      const existingSessionIds = new Set(
+        existingRecords
+          .filter((r) => r.devin_session_id)
+          .map((r) => r.devin_session_id)
+      );
+
+      let totalImported = 0;
+      let totalAcusImported = 0;
+      const sessionResults: Array<{
+        session_id: string;
+        interactions_imported: number;
+        total_acus: number;
+        skipped: boolean;
+      }> = [];
+
+      for (const session of syncResult.sessions) {
+        if (existingSessionIds.has(session.session_id)) {
+          sessionResults.push({
+            session_id: session.session_id,
+            interactions_imported: 0,
+            total_acus: session.total_acus,
+            skipped: true,
+          });
+          continue;
+        }
+
+        let sessionAcus = session.total_acus;
+        if (sessionAcus === 0) {
+          try {
+            const consumption = await devinApiService.getSessionConsumption(
+              body.devin_api_key,
+              body.devin_org_id,
+              session.session_id
+            );
+            sessionAcus = consumption.total_acus ?? 0;
+          } catch {
+            // Use 0 if consumption fetch fails
+          }
+        }
+
+        for (const interaction of session.interactions) {
+          const acuCost = session.interactions.length > 0 && sessionAcus > 0
+            ? Math.round((sessionAcus / session.interactions.length) * 100) / 100
+            : null;
+
+          await aiUsageTrackingService.create(userId, {
+            prompt: interaction.prompt,
+            devin_response: interaction.devin_response || null,
+            devin_session_id: session.session_id,
+            acu_consumption_after_response: acuCost,
+          });
+          totalImported++;
+        }
+
+        totalAcusImported += sessionAcus;
+        sessionResults.push({
+          session_id: session.session_id,
+          interactions_imported: session.interactions.length,
+          total_acus: sessionAcus,
+          skipped: false,
+        });
+      }
+
+      reply.code(201).send({
+        sessions_processed: syncResult.sessions_found,
+        sessions_skipped: sessionResults.filter((s) => s.skipped).length,
+        total_interactions_imported: totalImported,
+        total_acus: totalAcusImported,
+        sessions: sessionResults,
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === "ZodError") {
+        return reply.code(400).send({ error: "Dados inválidos", details: error });
+      }
+      console.error("Erro ao importar todas as sessões Devin:", error);
+      reply.code(500).send({
+        error: error instanceof Error ? error.message : "Erro ao importar sessões",
       });
     }
   }
